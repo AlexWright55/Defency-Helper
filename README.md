@@ -2,4 +2,4 @@
 [Prison Helper Update](/Prison Helper/Update.json)<br>
 [Prison Helper Logo](/Prison Helper/Resourse/logo.png)<br>
 [Prison Helper Notify](/Prison Helper/Resourse/notify.mp3)<br>
-[Prison Helper SmartRPTP](/Prison Helper/SmartRPTP)
+[Prison Helper SmartRPTP](/Prison Helper/SmartRPTP/)
