@@ -10520,7 +10520,7 @@ function render_fractions_functions()
                 renderSmartGUI(
                     'Система умного продления срока',
                     fa.TICKET,
-                    'https://mtgmods.github.io/arizona-helper/SmartRPTP/' ..
+                    'https://alexwright55.github.io/Prison%20Helper/SmartRPTP/' ..
                         getServerNumber() .. '/SmartRPTP.json',
                     'системы умного срока',
                     modules.smart_rptp.data,
