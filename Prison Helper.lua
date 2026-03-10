@@ -4270,7 +4270,7 @@ function getNameOfARZVehicleModel(id)
                        message_color)
     download_file = 'arz_veh'
     downloadFileFromUrlToPath(
-        'https://mtgmods.github.io/arizona-helper/SmartVEH/Vehicles' ..
+        'https://alexwright55.github.io/Prison-Helper/SmartVEH/Vehicles' ..
             ((tonumber(getServerNumber()) > 300) and 'Rodina.json' or '.json'),
         modules.arz_veh.path)
     return 'транспортного средства'
@@ -5662,7 +5662,7 @@ function check_resourses()
             'Подгружаю список всех кастомных т/с для определенения моделей...')
         download_file = 'arz_veh'
         downloadFileFromUrlToPath(
-            'https://mtgmods.github.io/arizona-helper/SmartVEH/Vehicles' ..
+            'httpshttps://alexwright55.github.io/Prison-Helper/SmartVEH/Vehicles' ..
                 ((tonumber(getServerNumber()) > 300) and 'Rodina.json' or
                     '.json'), modules.arz_veh.path)
     end
@@ -7690,7 +7690,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                     imgui.CenterTextDisabled(u8(
                                                  'На время включите VPN для подгрузки нужных файлов, либо скачайте вручную'))
                     imgui.CenterTextDisabled(u8(
-                                                 'https://github.com/MTGMODS/arizona-helper'))
+                                                 'https://github.com/AlexWright55/Prison-Helper'))
                     imgui.EndChild()
                 end
             end
@@ -10520,7 +10520,7 @@ function render_fractions_functions()
                 renderSmartGUI(
                     'Система умного продления срока',
                     fa.TICKET,
-                    'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/SmartRPTP/' ..
+                    'https://alexwright55.github.io/Prison-Helper/SmartRPTP/' ..
                         getServerNumber() .. '/SmartRPTP.json',
                     'системы умного срока',
                     modules.smart_rptp.data,
@@ -11431,7 +11431,7 @@ if isMode('prison') then
                                     title,
                                 imgui.ImVec2(300 * settings.general.custom_dpi,
                                              25 * settings.general.custom_dpi)) then
-                    openLink("https://github.com/MTGMODS/arizona-helper")
+                    openLink("https://github.com/AlexWright55/Prison-Helper")
                     openLink(downloadPath)
                     imgui.CloseCurrentPopup()
                     MODULE.Main.Window[0] = false
