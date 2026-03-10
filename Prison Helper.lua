@@ -243,17 +243,16 @@ local modules = {
         path = config_dir .. "/Commands.json",
         data = {
             commands = {
-				-- Все команды
+                -- Все команды
                 my = {
-					{
-						cmd = 'r',
-						description = 'РП рация',
-						text = '/r {arg} Конец связи.',
-						arg = '{arg}',
-						enable = true,
-						waiting = 2
-					},
                     {
+                        cmd = 'r',
+                        description = 'РП рация',
+                        text = '/r {arg} Конец связи.',
+                        arg = '{arg}',
+                        enable = true,
+                        waiting = 2
+                    }, {
                         cmd = 'time',
                         description = 'Посмотреть время',
                         text = '/me взглянул{sex} на часы с гравировкой Prison Helper и посмотрел{sex} время&/time&/do На часах видно время {get_time}.',
@@ -346,7 +345,7 @@ local modules = {
                     }
                 }
             },
-			-- Команды старший состав
+            -- Команды старший состав
             commands_senior_staff = {
                 my = {
                     {
@@ -556,337 +555,541 @@ local modules = {
         path = config_dir .. "/Guns.json",
         data = {
             rp_guns = {
-                {id = 0, name = 'кулаки', enable = true, rpTake = 2},
-                {id = 1, name = 'кастеты', enable = false, rpTake = 2},
                 {
+                    id = 0,
+                    name = 'кулаки',
+                    enable = true,
+                    rpTake = 2,
+                    waiting = '3'
+                },
+                {
+                    id = 1,
+                    name = 'кастеты',
+                    enable = false,
+                    rpTake = 2,
+                    waiting = '3'
+                }, {
                     id = 2,
                     name = 'клюшку для гольфа',
                     enable = false,
-                    rpTake = 1
-                }, {id = 3, name = 'дубинку', enable = true, rpTake = 3},
+                    rpTake = 1,
+                    waiting = '3'
+                },
                 {
+                    id = 3,
+                    name = 'дубинку',
+                    enable = true,
+                    rpTake = 3,
+                    waiting = '3'
+                }, {
                     id = 4,
                     name = 'острый нож',
                     enable = false,
-                    rpTake = 3
-                }, {id = 5, name = 'биту', enable = false, rpTake = 1},
-                {id = 6, name = 'лопату', enable = true, rpTake = 1},
-                {id = 7, name = 'кий', enable = false, rpTake = 1},
-                {id = 8, name = 'катану', enable = false, rpTake = 1},
+                    rpTake = 3,
+                    waiting = '3'
+                },
                 {
+                    id = 5,
+                    name = 'биту',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 6,
+                    name = 'лопату',
+                    enable = true,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 7,
+                    name = 'кий',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 8,
+                    name = 'катану',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 9,
                     name = 'бензопилу',
                     enable = false,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 },
-                {id = 10, name = 'игрушку', enable = false, rpTake = 2},
                 {
+                    id = 10,
+                    name = 'игрушку',
+                    enable = false,
+                    rpTake = 2,
+                    waiting = '3'
+                }, {
                     id = 11,
                     name = 'большую игрушку',
                     enable = false,
-                    rpTake = 2
-                },
-                {
+                    rpTake = 2,
+                    waiting = '3'
+                }, {
                     id = 12,
                     name = 'моторную игрушку',
                     enable = false,
-                    rpTake = 2
-                },
-                {
+                    rpTake = 2,
+                    waiting = '3'
+                }, {
                     id = 13,
                     name = 'большую игрушку',
                     enable = false,
-                    rpTake = 2
-                },
-                {
+                    rpTake = 2,
+                    waiting = '3'
+                }, {
                     id = 14,
                     name = 'букет цветов',
                     enable = true,
-                    rpTake = 1
-                }, {id = 15, name = 'трость', enable = false, rpTake = 1},
+                    rpTake = 1,
+                    waiting = '3'
+                },
                 {
+                    id = 15,
+                    name = 'трость',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 16,
                     name = 'осколочную гранату',
                     enable = false,
-                    rpTake = 3
-                },
-                {
+                    rpTake = 3,
+                    waiting = '3'
+                }, {
                     id = 17,
                     name = 'дымовую гранату',
                     enable = true,
-                    rpTake = 3
+                    rpTake = 3,
+                    waiting = '3'
                 }, {
                     id = 18,
                     name = 'коктейль Молотова',
                     enable = true,
-                    rpTake = 3
-                },
-                {
+                    rpTake = 3,
+                    waiting = '3'
+                }, {
                     id = 22,
                     name = 'пистолет Colt45',
                     enable = false,
-                    rpTake = 4
+                    rpTake = 4,
+                    waiting = '3'
                 }, {
                     id = 23,
                     name = "электрошокер Taser X26P",
                     enable = true,
-                    rpTake = 4
-                },
-                {
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 24,
                     name = 'пистолет Desert Eagle',
                     enable = true,
-                    rpTake = 4
+                    rpTake = 4,
+                    waiting = '3'
                 },
-                {id = 25, name = 'дробовик', enable = true, rpTake = 1},
-                {id = 26, name = 'обрез', enable = true, rpTake = 4},
                 {
+                    id = 25,
+                    name = 'дробовик',
+                    enable = true,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 26,
+                    name = 'обрез',
+                    enable = true,
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 27,
                     name = 'улучшенный обрез',
                     enable = false,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 },
-                {id = 28, name = 'ПП Micro Uzi', enable = true, rpTake = 3},
-                {id = 29, name = 'ПП MP5', enable = true, rpTake = 4},
                 {
+                    id = 28,
+                    name = 'ПП Micro Uzi',
+                    enable = true,
+                    rpTake = 3,
+                    waiting = '3'
+                },
+                {
+                    id = 29,
+                    name = 'ПП MP5',
+                    enable = true,
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 30,
                     name = 'автомат AK47',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 },
-                {id = 31, name = 'автомат M4', enable = true, rpTake = 1},
-                {id = 32, name = 'ПП Tec9', enable = true, rpTake = 4},
                 {
+                    id = 31,
+                    name = 'автомат M4',
+                    enable = true,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 32,
+                    name = 'ПП Tec9',
+                    enable = true,
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 33,
                     name = 'винтовку Rifle',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }, {
                     id = 34,
                     name = 'снайперскую винтовку',
                     enable = true,
-                    rpTake = 1
-                }, {id = 35, name = 'РПГ', enable = false, rpTake = 1},
-                {id = 36, name = 'ПТУР', enable = false, rpTake = 1},
-                {id = 37, name = 'огнемёт', enable = false, rpTake = 1},
-                {id = 38, name = 'миниган', enable = false, rpTake = 1},
-                {id = 39, name = 'динамит', enable = false, rpTake = 3},
+                    rpTake = 1,
+                    waiting = '3'
+                },
                 {
+                    id = 35,
+                    name = 'РПГ',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 36,
+                    name = 'ПТУР',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 37,
+                    name = 'огнемёт',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 38,
+                    name = 'миниган',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 39,
+                    name = 'динамит',
+                    enable = false,
+                    rpTake = 3,
+                    waiting = '3'
+                }, {
                     id = 40,
                     name = 'детонатор',
                     enable = false,
-                    rpTake = 3
+                    rpTake = 3,
+                    waiting = '3'
                 }, {
                     id = 41,
                     name = 'перцовый балончик',
                     enable = true,
-                    rpTake = 2
-                },
-                {
+                    rpTake = 2,
+                    waiting = '3'
+                }, {
                     id = 42,
                     name = 'огнетушитель',
                     enable = true,
-                    rpTake = 1
-                },
-                {
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 43,
                     name = 'фотоапарат',
                     enable = true,
-                    rpTake = 2
-                }, {id = 44, name = 'ПНВ', enable = false, rpTake = 3},
+                    rpTake = 2,
+                    waiting = '3'
+                },
                 {
+                    id = 44,
+                    name = 'ПНВ',
+                    enable = false,
+                    rpTake = 3,
+                    waiting = '3'
+                }, {
                     id = 45,
                     name = 'тепловизор',
                     enable = false,
-                    rpTake = 3
+                    rpTake = 3,
+                    waiting = '3'
                 },
-                {id = 46, name = 'парашут', enable = true, rpTake = 1},
-                -- gta sa damage reason
-                {id = 49, name = 'т/с', enable = false, rpTake = 1}, {
+                {
+                    id = 46,
+                    name = 'парашут',
+                    enable = true,
+                    rpTake = 1,
+                    waiting = '3'
+                }, -- gta sa damage reason
+                {
+                    id = 49,
+                    name = 'т/с',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 50,
                     name = 'лопасти вертолёта',
                     enable = false,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 },
-                {id = 51, name = 'гранату', enable = false, rpTake = 1},
                 {
+                    id = 51,
+                    name = 'гранату',
+                    enable = false,
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 54,
                     name = 'коллизию/тюнинг',
                     enable = false,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }, -- ARZ CUSTOM GUN
                 {
                     id = 71,
                     name = 'пистолет Desert Eagle Steel',
                     enable = true,
-                    rpTake = 4
+                    rpTake = 4,
+                    waiting = '3'
                 }, {
                     id = 72,
                     name = 'пистолет Desert Eagle Gold',
                     enable = true,
-                    rpTake = 4
-                },
-                {
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 73,
                     name = 'пистолет Glock Gradient',
                     enable = true,
-                    rpTake = 4
+                    rpTake = 4,
+                    waiting = '3'
                 }, {
                     id = 74,
                     name = 'пистолет Desert Eagle Flame',
                     enable = true,
-                    rpTake = 4
-                },
-                {
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 75,
                     name = 'пистолет Python Royal',
                     enable = true,
-                    rpTake = 4
-                },
-                {
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 76,
                     name = 'пистолет Python Silver',
                     enable = true,
-                    rpTake = 4
-                },
-                {
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 77,
                     name = 'автомат AK-47 Roses',
                     enable = true,
-                    rpTake = 1
-                },
-                {
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 78,
                     name = 'автомат AK-47 Gold',
                     enable = true,
-                    rpTake = 1
-                },
-                {
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 79,
                     name = 'пулемёт M249 Graffiti',
                     enable = true,
-                    rpTake = 1
-                },
-                {
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 80,
                     name = 'золотую Сайгу',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }, {id = 81, name = 'ПП Standart', enable = true, rpTake = 4},
                 {
                     id = 82,
                     name = 'пулемёт M249',
                     enable = true,
-                    rpTake = 1
-                }, {id = 83, name = 'ПП Skorp', enable = true, rpTake = 4}, {
+                    rpTake = 1,
+                    waiting = '3'
+                },
+                {
+                    id = 83,
+                    name = 'ПП Skorp',
+                    enable = true,
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 84,
                     name = 'автомат AKS74 камуфляжный',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }, {
                     id = 85,
                     name = 'автомат AK47 камуфляжный',
                     enable = true,
-                    rpTake = 1
-                },
-                {
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 86,
                     name = 'дробовик Rebecca',
                     enable = true,
-                    rpTake = 1
-                }, {id = 87, name = 'Doomgun', enable = true, rpTake = 1},
+                    rpTake = 1,
+                    waiting = '3'
+                },
                 {
+                    id = 87,
+                    name = 'Doomgun',
+                    enable = true,
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 88,
                     name = 'ледяной меч',
                     enable = true,
-                    rpTake = 1
-                },
-                {
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 89,
                     name = 'портальную пушку',
                     enable = true,
-                    rpTake = 4
+                    rpTake = 4,
+                    waiting = '3'
                 }, {
                     id = 90,
                     name = 'оглушающую гранату',
                     enable = true,
-                    rpTake = 3
+                    rpTake = 3,
+                    waiting = '3'
                 }, {
                     id = 91,
                     name = 'ослепляющую гранату',
                     enable = true,
-                    rpTake = 3
+                    rpTake = 3,
+                    waiting = '3'
                 }, {
                     id = 92,
                     name = 'снайперскую винтовку TAC50',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }, {
                     id = 93,
                     name = 'оглушающий пистолет',
                     enable = true,
-                    rpTake = 4
-                },
-                {
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 94,
                     name = 'снежную пушку',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }, {
                     id = 95,
                     name = 'пиксельный бластер',
                     enable = true,
-                    rpTake = 3
-                },
-                {
+                    rpTake = 3,
+                    waiting = '3'
+                }, {
                     id = 96,
                     name = 'автомат M4 Gold',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }, {
                     id = 97,
                     name = 'бандитский дробовик',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 },
-                {id = 98, name = 'ПП Uzi Graffiti', enable = true, rpTake = 4},
                 {
+                    id = 98,
+                    name = 'ПП Uzi Graffiti',
+                    enable = true,
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 99,
                     name = 'золотую монтировку',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 },
-                {id = 100, name = 'биту Compton', enable = true, rpTake = 1},
                 {
+                    id = 100,
+                    name = 'биту Compton',
+                    enable = true,
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 101,
                     name = 'пистолет SciFi Deagle',
                     enable = true,
-                    rpTake = 4
-                },
-                {
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 102,
                     name = 'автомат SciFi AK47',
                     enable = true,
-                    rpTake = 1
-                },
-                {
+                    rpTake = 1,
+                    waiting = '3'
+                }, {
                     id = 103,
                     name = 'дробовик SciFi',
                     enable = true,
-                    rpTake = 1
-                }, {id = 104, name = 'нож SciFi', enable = true, rpTake = 3},
-                {id = 105, name = 'сканер', enable = false, rpTake = 4},
+                    rpTake = 1,
+                    waiting = '3'
+                },
                 {
+                    id = 104,
+                    name = 'нож SciFi',
+                    enable = true,
+                    rpTake = 3,
+                    waiting = '3'
+                },
+                {
+                    id = 105,
+                    name = 'сканер',
+                    enable = false,
+                    rpTake = 4,
+                    waiting = '3'
+                }, {
                     id = 106,
                     name = 'золотой нож',
                     enable = true,
-                    rpTake = 3
-                },
-                {
+                    rpTake = 3,
+                    waiting = '3'
+                }, {
                     id = 107,
                     name = 'катану Нир',
                     enable = true,
-                    rpTake = 1
+                    rpTake = 1,
+                    waiting = '3'
                 }
             },
             rpTakeNames = {
@@ -2781,6 +2984,9 @@ function initialize_guns()
     local data = modules.rpgun.data
     data.byId = {}
     data.gunActions = {on = {}, off = {}, partOn = {}, partOff = {}}
+    for i, weapon in ipairs(data.rp_guns) do
+        if not weapon.waiting then weapon.waiting = '3' end
+    end
     for i, weapon in pairs(data.rp_guns) do
         local rpTakeType = data.rpTakeNames[weapon.rpTake]
         local id = weapon.id
@@ -2810,6 +3016,11 @@ function get_name_weapon(id)
     end
     return "оружие"
 end
+function getWeaponDelay(id)
+    local w = modules.rpgun.data.byId[id]
+    if w and w.waiting then return tonumber(w.waiting) or 3.0 end
+    return 3.0 -- значение по умолчанию
+end
 function isExistsWeapon(id) return modules.rpgun.data.byId[id] ~= nil end
 function isEnableWeapon(id)
     local w = modules.rpgun.data.byId[id]
@@ -2828,53 +3039,101 @@ function handleNewWeapon(weaponId)
         id = weaponId,
         name = "оружие",
         enable = true,
-        rpTake = 1
+        rpTake = 1,
+        waiting = '3'
     })
     save_module('rpgun')
     initialize_guns()
 end
 function processWeaponChange(oldGun, nowGun)
+    -- Проверка инициализации
     if not modules.rpgun.data.gunActions.off[oldGun] or
         not modules.rpgun.data.gunActions.on[nowGun] then
         sampAddChatMessage(
-            '[Prison Helper | Ассистент] {ffffff}Инициализация оружия...',
+            '[Prison Helper] {ffffff}Инициализация оружия...',
             message_color)
         initialize_guns()
         return
     end
+
+    -- Вспомогательная функция для получения задержки (в секундах)
+    local function getDelay(gunId)
+        local w = modules.rpgun.data.byId[gunId]
+        if w and w.waiting then
+            local d = tonumber(w.waiting)
+            if d and d > 0 then return d end
+        end
+        return 3.0 -- значение по умолчанию
+    end
+
     local actions = modules.rpgun.data.gunActions
-    if oldGun == 0 and nowGun == 0 then
-        return
-    elseif oldGun == 0 and not isEnableWeapon(nowGun) then
-        return
-    elseif nowGun == 0 and not isEnableWeapon(oldGun) then
-        return
-    elseif not isEnableWeapon(oldGun) and isEnableWeapon(nowGun) then
-        sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
-                                   get_name_weapon(nowGun),
-                                   actions.partOn[nowGun]))
-    elseif isEnableWeapon(oldGun) and not isEnableWeapon(nowGun) then
-        sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
-                                   get_name_weapon(oldGun),
-                                   actions.partOff[oldGun]))
-    elseif oldGun == 0 then
-        sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
-                                   get_name_weapon(nowGun),
-                                   actions.partOn[nowGun]))
-    elseif nowGun == 0 then
-        sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
-                                   get_name_weapon(oldGun),
-                                   actions.partOff[oldGun]))
-    else
-        if isEnableWeapon(oldGun) and isEnableWeapon(nowGun) then
-            sampSendChat(string.format(
-                             "/me %s %s %s, после чего %s %s %s",
-                             actions.off[oldGun], get_name_weapon(oldGun),
-                             actions.partOff[oldGun], actions.on[nowGun],
-                             get_name_weapon(nowGun), actions.partOn[nowGun]))
+
+    -- Случаи, когда ничего не делаем
+    if oldGun == 0 and nowGun == 0 then return end
+    if oldGun == 0 and not isEnableWeapon(nowGun) then return end
+    if nowGun == 0 and not isEnableWeapon(oldGun) then return end
+
+    -- Запускаем асинхронную отправку
+    lua_thread.create(function()
+        -- Задержка для нового оружия (будет использоваться между сообщениями)
+        local delay = getDelay(nowGun)
+
+        -- Сценарий: достаём оружие (было 0, стало оружие)
+        if oldGun == 0 and isEnableWeapon(nowGun) then
+            wait(delay * 1000)
+            sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
+                                       get_name_weapon(nowGun),
+                                       actions.partOn[nowGun]))
+            wait(delay * 1000)
+            return
         end
 
-    end
+        -- Сценарий: убираем оружие (было оружие, стало 0)
+        if nowGun == 0 and isEnableWeapon(oldGun) then
+            wait(delay * 1000)
+            sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
+                                       get_name_weapon(oldGun),
+                                       actions.partOff[oldGun]))
+            wait(delay * 1000)
+            return
+        end
+
+        -- Сценарий: меняем одно оружие на другое (оба включены)
+        if isEnableWeapon(oldGun) and isEnableWeapon(nowGun) then
+            -- Отправляем два отдельных сообщения с задержкой между ними
+            wait(delay * 1000)
+            sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
+                                       get_name_weapon(oldGun),
+                                       actions.partOff[oldGun]))
+            wait(delay * 1000)
+
+            sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
+                                       get_name_weapon(nowGun),
+                                       actions.partOn[nowGun]))
+            wait(delay * 1000)
+            return
+        end
+
+        -- Сценарий: достаём оружие, которое ранее было выключено в настройках
+        if not isEnableWeapon(oldGun) and isEnableWeapon(nowGun) then
+            wait(delay * 1000)
+            sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
+                                       get_name_weapon(nowGun),
+                                       actions.partOn[nowGun]))
+            wait(delay * 1000)
+            return
+        end
+
+        -- Сценарий: убираем оружие, которое стало выключенным в настройках
+        if isEnableWeapon(oldGun) and not isEnableWeapon(nowGun) then
+            wait(delay * 1000)
+            sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
+                                       get_name_weapon(oldGun),
+                                       actions.partOff[oldGun]))
+            wait(delay * 1000)
+            return
+        end
+    end)
 end
 -------------------------------------------- Variables ------------------------------------------
 local PlayerID = nil
@@ -8226,9 +8485,9 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                             imgui.NextColumn()
                             imgui.CenterColumnText(
                                 u8 "Меню умного повышения срока")
-							imgui.Columns(1)
-							imgui.Separator()
-							imgui.Columns(2)
+                            imgui.Columns(1)
+                            imgui.Separator()
+                            imgui.Columns(2)
                             imgui.CenterColumnText(u8 "/stop")
                             imgui.NextColumn()
                             imgui.CenterColumnText(
@@ -12408,7 +12667,7 @@ end)
 imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(600 * settings.general.custom_dpi,
+    imgui.SetNextWindowSize(imgui.ImVec2(700 * settings.general.custom_dpi,
                                          425 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
     imgui.Begin(
@@ -12416,13 +12675,15 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
             fa.GUN, MODULE.RPWeapon.Window,
         imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
     change_dpi()
-    imgui.PushItemWidth(385 * settings.general.custom_dpi)
+
+    -- Строка поиска и кнопки "Включить всё / Отключить всё"
+    imgui.PushItemWidth(485 * settings.general.custom_dpi)
     imgui.InputTextWithHint(u8 '##inputsearch_weapon_name', u8(
                                 'Вводите чтобы искать оружие по его ID или названию...'),
                             MODULE.RPWeapon.input_search, 256)
     imgui.SameLine()
     if imgui.Button(u8("Включить всё")) then
-        for index, value in ipairs(modules.rpgun.data.rp_guns) do
+        for _, value in ipairs(modules.rpgun.data.rp_guns) do
             value.enable = true
         end
         initialize_guns()
@@ -12430,32 +12691,42 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
     end
     imgui.SameLine()
     if imgui.Button(u8("Отключить всё")) then
-        for index, value in ipairs(modules.rpgun.data.rp_guns) do
+        for _, value in ipairs(modules.rpgun.data.rp_guns) do
             value.enable = false
         end
         save_module('rpgun')
     end
+
+    -- Основная таблица
     if imgui.BeginChild('##rpguns1',
-                        imgui.ImVec2(588 * settings.general.custom_dpi,
+                        imgui.ImVec2(688 * settings.general.custom_dpi,
                                      361 * settings.general.custom_dpi), true) then
-        imgui.Columns(3)
+        imgui.Columns(4)
         imgui.CenterColumnText(u8 "Работоспособность")
-        imgui.SetColumnWidth(-1, 150 * settings.general.custom_dpi)
+        imgui.SetColumnWidth(-1, 140 * settings.general.custom_dpi)
         imgui.NextColumn()
         imgui.CenterColumnText(u8 "ID и название оружия")
-        imgui.SetColumnWidth(-1, 300 * settings.general.custom_dpi)
+        imgui.SetColumnWidth(-1, 270 * settings.general.custom_dpi)
         imgui.NextColumn()
         imgui.CenterColumnText(u8 "Расположение")
-        imgui.SetColumnWidth(-1, 150 * settings.general.custom_dpi)
+        imgui.SetColumnWidth(-1, 140 * settings.general.custom_dpi)
+        imgui.NextColumn()
+        imgui.CenterColumnText(u8 "Задержка (сек)")
+        imgui.SetColumnWidth(-1, 120 * settings.general.custom_dpi)
         imgui.Columns(1)
         imgui.Separator()
+
         local decoded_input =
             u8:decode(ffi.string(MODULE.RPWeapon.input_search))
+
         for index, value in ipairs(modules.rpgun.data.rp_guns) do
             if decoded_input == '' or
                 (value.name and value.name:upper():find(decoded_input:upper())) or
                 value.id == tonumber(decoded_input) then
-                imgui.Columns(3)
+
+                imgui.Columns(4)
+
+                -- 1. Работоспособность (вкл/выкл)
                 if value.enable then
                     if imgui.CenterColumnSmallButton(fa.SQUARE_CHECK ..
                                                          u8 '  (работает)##' ..
@@ -12476,6 +12747,8 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                     end
                 end
                 imgui.NextColumn()
+
+                -- 2. ID и название оружия + кнопка редактирования названия
                 imgui.CenterColumnText('[' .. value.id .. '] ' .. u8(value.name))
                 imgui.SameLine()
                 if imgui.SmallButton(fa.PEN_TO_SQUARE .. '##weapon_name' ..
@@ -12486,6 +12759,8 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                                         u8 ' Название оружия ' ..
                                         fa.GUN .. '##weapon_name' .. index)
                 end
+
+                -- Popup для изменения названия
                 imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                                        imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
                 if imgui.BeginPopupModal(fa.GUN ..
@@ -12518,16 +12793,13 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                     imgui.EndPopup()
                 end
                 imgui.NextColumn()
-                local position = ''
-                if value.rpTake == 1 then
-                    position = 'Спина'
-                elseif value.rpTake == 2 then
-                    position = 'Карман'
-                elseif value.rpTake == 3 then
-                    position = 'Пояс'
-                elseif value.rpTake == 4 then
-                    position = 'Кобура'
-                end
+
+                -- 3. Расположение + кнопка редактирования
+                local position = (value.rpTake == 1 and 'Спина') or
+                                     (value.rpTake == 2 and 'Карман') or
+                                     (value.rpTake == 3 and 'Пояс') or
+                                     (value.rpTake == 4 and 'Кобура') or
+                                     '?'
                 imgui.CenterColumnText(u8(position))
                 imgui.SameLine()
                 if imgui.SmallButton(fa.PEN_TO_SQUARE .. '##weapon_position' ..
@@ -12537,6 +12809,8 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                                         u8 ' Расположение оружия##weapon_name' ..
                                         index)
                 end
+
+                -- Popup для расположения
                 imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                                        imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
                 if imgui.BeginPopupModal(fa.GUN ..
@@ -12567,6 +12841,65 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                     end
                     imgui.EndPopup()
                 end
+                imgui.NextColumn()
+
+                -- 4. Задержка + кнопка редактирования
+                local waiting_val = tonumber(value.waiting) or 1.0
+                local waiting_str = string.format("%.1f с", waiting_val)
+                imgui.CenterColumnText(u8(waiting_str))
+                imgui.SameLine()
+                if imgui.SmallButton(fa.PEN_TO_SQUARE .. '##weapon_delay' ..
+                                         index) then
+                    _G.delay_input = imgui.new.float(waiting_val)
+                    imgui.OpenPopup(fa.CLOCK ..
+                                        u8 ' Задержка для оружия ' ..
+                                        fa.CLOCK .. '##weapon_delay' .. index)
+                end
+
+                -- Popup для задержки
+                -- Popup для задержки
+                imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                if imgui.BeginPopupModal(fa.CLOCK ..
+                                             u8 ' Задержка для оружия ' ..
+                                             fa.CLOCK .. '##weapon_delay' ..
+                                             index, _,
+                                         imgui.WindowFlags.NoCollapse +
+                                             imgui.WindowFlags.NoResize +
+                                             imgui.WindowFlags.AlwaysAutoResize) then
+                    change_dpi()
+                    imgui.PushItemWidth(200 * settings.general.custom_dpi)
+                    if imgui.InputFloat('##delay_input', _G.delay_input, 0.1,
+                                        1.0, '%.1f с') then
+                        -- Ограничиваем значение при вводе
+                        if _G.delay_input[0] < 0.1 then
+                            _G.delay_input[0] = 0.1
+                        end
+                        if _G.delay_input[0] > 30.0 then
+                            _G.delay_input[0] = 30.0
+                        end
+                    end
+                    imgui.SameLine()
+                    imgui.Text(u8 "(0.1 - 30.0)")
+                    if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
+                                    imgui.ImVec2(
+                                        150 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.SameLine()
+                    if imgui.Button(fa.FLOPPY_DISK .. u8 ' Сохранить',
+                                    imgui.ImVec2(
+                                        150 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
+                        value.waiting = tostring(_G.delay_input[0])
+                        save_module('rpgun')
+                        _G.delay_input = nil
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.EndPopup()
+                end
+
                 imgui.Columns(1)
                 imgui.Separator()
             end
@@ -12575,6 +12908,7 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
     end
     imgui.End()
 end)
+
 imgui.OnFrame(function() return MODULE.CommandStop.Window[0] end,
               function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY - 50 *
