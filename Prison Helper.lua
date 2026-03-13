@@ -65,6 +65,7 @@ local settings = {}
 local default_settings = {
     general = {
         version = thisScript().version,
+        author = 'Flip Anderson',
         custom_dpi = 1.0,
         autofind_dpi = false,
         helper_theme = 0,
@@ -98,7 +99,12 @@ local default_settings = {
         rp_chat = true
     },
     -- Только для тюрьмы
-    md = {auto_doklad_damage = false, auto_doklad_patrool = true},
+    md = {
+        auto_doklad_damage = false,
+        auto_doklad_patrool = true,
+        auto_door = false,
+        auto_doklad_post = false
+    },
     windows_pos = {
         pie = {x = sizeX * 0.7, y = sizeY * 0.7},
         patrool_menu = {x = sizeX / 2, y = sizeY / 2},
@@ -251,7 +257,7 @@ local modules = {
                         text = '/r {arg} Конец связи.',
                         arg = '{arg}',
                         enable = true,
-                        waiting = 2
+                        waiting = "2"
                     }, {
                         cmd = 'time',
                         description = 'Посмотреть время',
@@ -1115,7 +1121,12 @@ local modules = {
         data = {},
         byId = {},
         cache = {}
-    }
+    },
+    update_info = {
+        name = 'Информация об обновлениях',
+    path = config_dir .. "/update-info.json",
+    data = {}
+    },
 }
 function load_module(key)
     local obj = modules[key]
@@ -1350,6 +1361,15 @@ local MODULE = {
             title = '',
             item = nil
         }
+    },
+    Update = {
+        Window = imgui.new.bool(),
+    is_need_update = false,
+    version = "",
+    url = "",
+    info = "",
+    download_file = "",
+    news = {}  -- для хранения массива новостей
     },
     FastMenuButton = {Window = imgui.new.bool()},
     FastMenuPlayers = {Window = imgui.new.bool()},
@@ -3084,7 +3104,6 @@ function processWeaponChange(oldGun, nowGun)
             sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
                                        get_name_weapon(nowGun),
                                        actions.partOn[nowGun]))
-            wait(delay * 1000)
             return
         end
 
@@ -3094,23 +3113,17 @@ function processWeaponChange(oldGun, nowGun)
             sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
                                        get_name_weapon(oldGun),
                                        actions.partOff[oldGun]))
-            wait(delay * 1000)
             return
         end
 
         -- Сценарий: меняем одно оружие на другое (оба включены)
         if isEnableWeapon(oldGun) and isEnableWeapon(nowGun) then
-            -- Отправляем два отдельных сообщения с задержкой между ними
-            wait(delay * 1000)
-            sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
-                                       get_name_weapon(oldGun),
-                                       actions.partOff[oldGun]))
-            wait(delay * 1000)
-
-            sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
-                                       get_name_weapon(nowGun),
-                                       actions.partOn[nowGun]))
-            wait(delay * 1000)
+            wait(delay * 1000) -- пауза перед действием (как и в других случаях)
+            sampSendChat(string.format(
+                             "/me %s %s %s, после чего %s %s %s",
+                             actions.off[oldGun], get_name_weapon(oldGun),
+                             actions.partOff[oldGun], actions.on[nowGun],
+                             get_name_weapon(nowGun), actions.partOn[nowGun]))
             return
         end
 
@@ -3120,7 +3133,6 @@ function processWeaponChange(oldGun, nowGun)
             sampSendChat(string.format("/me %s %s %s", actions.on[nowGun],
                                        get_name_weapon(nowGun),
                                        actions.partOn[nowGun]))
-            wait(delay * 1000)
             return
         end
 
@@ -3130,7 +3142,6 @@ function processWeaponChange(oldGun, nowGun)
             sampSendChat(string.format("/me %s %s %s", actions.off[oldGun],
                                        get_name_weapon(oldGun),
                                        actions.partOff[oldGun]))
-            wait(delay * 1000)
             return
         end
     end)
@@ -3163,6 +3174,9 @@ function main()
     welcome_message()
 
     check_update()
+
+    MODULE.Update.news = {}
+load_update_news()  -- если файл уже есть, он загрузится
 
     while true do
         wait(0)
@@ -5752,7 +5766,7 @@ function count_lines_in_text(text, max_length)
     if current_line ~= "" then table.insert(lines, current_line) end
     return tonumber(#lines)
 end
-function downloadFileFromUrlToPath(url, path)
+function downloadFileFromUrlToPath(url, path) 
     print('Начинаю скачивание файла в ' .. path)
     local function on_finish_download()
         if download_file == 'update' then
@@ -5845,9 +5859,15 @@ function downloadFileFromUrlToPath(url, path)
                 print(
                     'Звук оповещений успешно загружен!')
             end
-        end
+        elseif download_file == 'news' then
+    sampAddChatMessage(script_tag ..
+                       ' {ffffff}Файл с новостями успешно загружен!',
+                       message_color)
+    load_update_news()
+    playNotifySound()
         download_file = ''
     end
+end
     if IS_MOBILE then
         local function downloadToFile(url, path)
             local http = require("socket.http")
@@ -5896,7 +5916,7 @@ function check_update()
                        message_color)
     download_file = 'update'
     downloadFileFromUrlToPath(
-        'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update_Info.json',
+        'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update.json',
         config_dir .. "/Update.json")
 end
 function check_resourses()
@@ -6463,11 +6483,31 @@ function sampev.onServerMessage(color, text)
         print('[ServerMessage] Color ' .. color .. " | Text " .. text)
     end
 
-    if settings.general.ping and text:find('@' .. MODULE.Binder.tags.my_nick()) then
+    if settings.general.ping and text:match('@' .. MODULE.Binder.tags.my_nick()) then
         sampAddChatMessage(script_tag ..
                                ' {ffffff}Кто-то упомянул вас в чате!',
                            message_color)
         playNotifySound()
+    end
+
+    if settings.md.auto_doklad_post then
+
+        if text:find(
+            'Вы успешно начали патрулирование {ff6666}поста: (.+){ffffff}.') then
+            local postnazvanie = text:match(
+                                     'Вы успешно начали патрулирование {ff6666}поста: (.+){ffffff}.')
+            imgui.StrCopy(MODULE.Post.input, postnazvanie)
+        end
+
+        if text:find(
+            '%[Патрулирование%] {ffffff}Доложите о {ff6666}начале выполнения маршрута в рацию %(/r%){ffffff}, чтобы продолжить.') then
+            local postStr = ffi.string(MODULE.Post.input)
+            sampSendChat('/r Докладывает ' ..
+                             settings.player_info.fraction_rank .. ': ' ..
+                             settings.player_info.name_surname .. '. Пост: ' ..
+                             postStr ..
+                             '. Состояние: Стабильное')
+        end
     end
 
     if ((settings.general.auto_uninvite) and
@@ -6615,6 +6655,9 @@ function sampev.onSendChat(text)
         ["<3"] = true
     }
     if ignore[text] then return {text} end
+    -- Замена @id
+    text = replaceMentions(text)
+
     if settings.player_info.rp_chat then
         text = text:sub(1, 1):rupper() .. text:sub(2, #text)
         if not text:find('(.+)%.') and not text:find('(.+)%!') and
@@ -6624,12 +6667,35 @@ function sampev.onSendChat(text)
         text = settings.player_info.accent .. ' ' .. text
     end
     return {text}
+
 end
+
 function sampev.onSendCommand(text)
     if MODULE.DEBUG then
         sampAddChatMessage('[SendCommand] {ffffff}CMD ' .. text, message_color)
         print('[SendCommand] CMD ' .. text)
     end
+
+    if settings.general.ping then
+        local chats = {
+            '/vr', '/fam', '/al', '/s', '/b', '/n', '/r', '/rb', '/f', '/fb',
+            '/j', '/jb', '/m', '/do'
+        }
+        for _, cmd in ipairs(chats) do
+            if text:find('^' .. cmd .. ' ') then
+                local cmd_text = text:match('^' .. cmd .. ' (.+)')
+                if cmd_text then
+                    local new_cmd_text = replaceMentions(cmd_text)
+                    -- Если текст изменился, пересобираем команду
+                    if new_cmd_text ~= cmd_text then
+                        text = cmd .. ' ' .. new_cmd_text
+                    end
+                end
+                break -- нашли нужную команду, дальше не ищем
+            end
+        end
+    end
+
     if settings.player_info.rp_chat then
         local chats = {
             '/vr', '/fam', '/al', '/s', '/b', '/n', '/r', '/rb', '/f', '/fb',
@@ -6638,6 +6704,7 @@ function sampev.onSendCommand(text)
         for _, cmd in ipairs(chats) do
             if text:find('^' .. cmd .. ' ') then
                 local cmd_text = text:match('^' .. cmd .. ' (.+)')
+
                 if cmd_text ~= nil then
                     cmd_text = cmd_text:sub(1, 1):rupper() ..
                                    cmd_text:sub(2, #cmd_text)
@@ -6652,6 +6719,7 @@ function sampev.onSendCommand(text)
     end
     return {text}
 end
+
 function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
     if MODULE.DEBUG then
         sampAddChatMessage(
@@ -7190,6 +7258,7 @@ function sampev.onPlayerChatBubble(player_id, color, distance, duration, message
                   ' | MSG ' .. message)
     end
 end
+
 addEventHandler('onSendPacket',
                 function(id, bs, priority, reliability, orderingChannel)
     if id == 220 then
@@ -7226,6 +7295,7 @@ addEventHandler('onSendPacket',
         end
     end
 end)
+
 addEventHandler('onReceivePacket', function(id, bs)
     if id == 220 then
         local id = raknetBitStreamReadInt8(bs)
@@ -7306,6 +7376,15 @@ addEventHandler('onReceivePacket', function(id, bs)
                     -- для иншуренс, не нужно
                 end
 
+                if settings.md.auto_door then
+                    -- Автоматическое нажатие кнопки "Открыть" (или "Действие")
+                    if cmd and cmd:find('interactionSidebar') and
+                        cmd:find('Открыть') then
+                        lua_thread.create(function()
+                            pressActionKey()
+                        end)
+                    end
+                end
             end
         end
     end
@@ -7328,18 +7407,24 @@ imgui.OnInitialize(function()
     imgui.GetIO().Fonts:Clear()
 
     local glyph_ranges = imgui.GetIO().Fonts:GetGlyphRangesCyrillic()
-    if IS_MOBILE then
-        MODULE.FONT = imgui.GetIO().Fonts:AddFontFromFileTTF(worked_dir ..
-                                                                 '/lib/mimgui/trebucbd.ttf',
-                                                             14 *
-                                                                 settings.general
-                                                                     .custom_dpi,
-                                                             _, glyph_ranges)
+    local font_path
+    if settings.general.helper_theme == 3 then
+        -- Пытаемся загрузить игровой шрифт (например, Eitai.ttf из папки ресурсов)
+        font_path = config_dir .. "/Resourse/Eitai.ttf"
+        if not doesFileExist(font_path) then
+            -- Если нет, используем стандартный
+            font_path =
+                IS_MOBILE and (worked_dir .. '/lib/mimgui/trebucbd.ttf') or
+                    (getFolderPath(0x14) .. '\\trebucbd.ttf')
+        end
     else
-        MODULE.FONT = imgui.GetIO().Fonts:AddFontFromFileTTF(
-                          getFolderPath(0x14) .. '\\trebucbd.ttf',
-                          14 * settings.general.custom_dpi, _, glyph_ranges)
+        font_path = IS_MOBILE and (worked_dir .. '/lib/mimgui/trebucbd.ttf') or
+                        (getFolderPath(0x14) .. '\\trebucbd.ttf')
     end
+    MODULE.FONT = imgui.GetIO().Fonts:AddFontFromFileTTF(font_path, 14 *
+                                                             settings.general
+                                                                 .custom_dpi, _,
+                                                         glyph_ranges)
 
     fa.Init(14 * settings.general.custom_dpi)
     for key, value in pairs(fa) do
@@ -7353,6 +7438,8 @@ imgui.OnInitialize(function()
         apply_dark_theme()
     elseif settings.general.helper_theme == 2 then
         apply_white_theme()
+    elseif settings.general.helper_theme == 3 then
+        apply_gamestyle_theme()
     end
 
     imgui.GetIO().ConfigFlags = imgui.ConfigFlags.NoMouseCursorChange
@@ -8395,7 +8482,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
             imgui.EndTabItem()
         end
         if imgui.BeginTabItem(fa.RECTANGLE_LIST ..
-                                  u8 ' Команды и RP отыгровки') then
+                                  u8 ' Основное') then
             if imgui.BeginTabBar('Список всех команд') then
                 if imgui.BeginTabItem(fa.BARS ..
                                           u8 ' Стандартные команды') then
@@ -9941,6 +10028,78 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
             end
             imgui.EndTabItem()
         end
+        if imgui.BeginTabItem(fa.BOOK .. u8 ' Обновления') then
+    if imgui.BeginChild('##updates_child',
+                        imgui.ImVec2(589 * settings.general.custom_dpi,
+                                     367 * settings.general.custom_dpi), true) then
+        imgui.CenterText(fa.CLOUD_ARROW_DOWN .. u8 ' История обновлений ' .. fa.CLOUD_ARROW_DOWN)
+        imgui.Separator()
+
+        -- Загружаем новости при первом открытии, если ещё не загружены
+        if not MODULE.Update.news then
+            MODULE.Update.news = {}
+            load_update_news()  -- функция загрузки (см. ниже)
+        end
+
+        if imgui.Button(u8("Загрузить новости"),
+                imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+    download_file = 'news'
+    downloadFileFromUrlToPath('https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update-info.json',
+                              modules.update_info.path)
+end
+
+        imgui.Separator()
+
+        -- Вывод новостей
+        if MODULE.Update.news and #MODULE.Update.news > 0 then
+            for _, item in ipairs(MODULE.Update.news) do
+                local header = string.format("%s (%s) - %s", item.title, item.version, item.date)
+                if imgui.CollapsingHeader(u8(header)) then
+                    if type(item.text) == "table" then
+                        for _, line in ipairs(item.text) do
+                            imgui.BulletText(u8(line))
+                        end
+                    else
+                        imgui.TextWrapped(u8(item.text))
+                    end
+                end
+            end
+        else
+            imgui.Text(u8("Нет данных об обновлениях. Нажмите кнопку выше для загрузки."))
+        end
+
+        imgui.Separator()
+
+        -- Проверка наличия новой версии (сравниваем с последней в списке)
+        if MODULE.Update.news and #MODULE.Update.news > 0 then
+            local latest = MODULE.Update.news[1]  -- предполагаем, что новости отсортированы по убыванию
+            if latest.version and thisScript().version ~= latest.version then
+                imgui.TextColored(imgui.ImVec4(1,1,0,1), u8("Доступно обновление до версии ") .. u8(latest.version))
+                -- Если есть ссылка для скачивания (можно добавить в JSON), то покажем кнопку
+                -- Например, если в последней новости есть поле download_url
+                if latest.download_url then
+                    if imgui.Button(fa.DOWNLOAD .. u8(" Скачать обновление"),
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+                        if thisScript().version:find('VIP') then
+                            sampAddChatMessage(script_tag ..
+                                               ' {ffffff}Используйте команду /ph в нашем Telegram/Discord VIP боте!',
+                                               message_color)
+                        else
+                            download_file = 'helper'
+                            downloadFileFromUrlToPath(latest.download_url,
+                                                       worked_dir .. "/Prison Helper.lua")
+                        end
+                    end
+                end
+            else
+                imgui.TextColored(imgui.ImVec4(0,1,0,1), u8("У вас актуальная версия"))
+            end
+        end
+
+        imgui.EndChild()
+    end
+    imgui.EndTabItem()
+end
         if imgui.BeginTabItem(fa.GEAR .. u8 ' Настройки') then
             if imgui.BeginChild('##1',
                                 imgui.ImVec2(589 * settings.general.custom_dpi,
@@ -9951,7 +10110,8 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                      fa.CIRCLE_INFO)
                 imgui.Separator()
                 imgui.Text(fa.CIRCLE_USER ..
-                               u8 " Разработчик данного хелпера: MTG MODS")
+                               u8 " Разработчик данного хелпера: " ..
+                               u8(settings.general.author))
                 imgui.Separator()
                 imgui.Text(fa.CIRCLE_INFO ..
                                u8 " Установленная версия хелпера: " ..
@@ -10015,60 +10175,83 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                      fa.PALETTE)
                 imgui.Separator()
                 imgui.Columns(3)
-                imgui.CenterColumnText(fa.BRUSH ..
-                                           u8(' Цвет интерфейса'))
-                if monet_no_errors then
-                    function moon_monet_edit()
-                        local r, g, b = MODULE.Main.mmcolor[0] * 255,
-                                        MODULE.Main.mmcolor[1] * 255,
-                                        MODULE.Main.mmcolor[2] * 255
-                        local argb = join_argb(0, r, g, b)
-                        settings.general.helper_theme = 0
-                        settings.general.moonmonet_theme_color = argb
-                        settings.general.message_color = argb
-                        message_color = "0x" ..
-                                            argbToHexWithoutAlpha(0, r, g, b)
-                        message_color_hex = '{' ..
-                                                argbToHexWithoutAlpha(0, r, g, b) ..
-                                                '}'
-                        MODULE.Main.msgcolor[0], MODULE.Main.msgcolor[1], MODULE.Main
-                            .msgcolor[2] =
-                            color_to_float3(settings.general.message_color)
-                    end
-                    if imgui.RadioButtonIntPtr(u8 " Custom", MODULE.Main.theme,
-                                               0) then
-                        moon_monet_edit()
-                        apply_moonmonet_theme()
-                        save_settings()
-                    end
-                    imgui.SameLine()
-                    if imgui.ColorEdit3('## COLOR1', MODULE.Main.mmcolor,
-                                        imgui.ColorEditFlags.NoInputs) then
-                        if MODULE.Main.theme[0] == 0 then
-                            moon_monet_edit()
-                            apply_moonmonet_theme()
-                            save_settings()
-                        end
-                    end
-                else
-                    if imgui.RadioButtonIntPtr(u8 " Сustom ",
-                                               MODULE.Main.theme, 0) then
-                        MODULE.Main.theme[0] = settings.general.helper_theme
-                        sampAddChatMessage(script_tag ..
-                                               ' {ffffff}Установите библиотеку MoonMonet!',
-                                           message_color)
-                    end
-                end
-                if imgui.RadioButtonIntPtr(" Dark Theme ", MODULE.Main.theme, 1) then
-                    settings.general.helper_theme = 1
-                    save_settings()
-                    apply_dark_theme()
-                end
-                if imgui.RadioButtonIntPtr(" White Theme ", MODULE.Main.theme, 2) then
-                    settings.general.helper_theme = 2
-                    save_settings()
-                    apply_white_theme()
-                end
+                imgui.CenterColumnText(fa.BRUSH .. u8(' Цвет интерфейса'))
+
+-- Кнопка для открытия окна выбора темы (доступна всегда)
+if imgui.CenterColumnButton(u8(' Выбрать тему... ')) then
+    imgui.OpenPopup(fa.BRUSH .. u8(' Выбор темы ') .. fa.BRUSH)
+end
+
+-- Модальное окно выбора темы (доступно всегда)
+imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+if imgui.BeginPopupModal(fa.BRUSH .. u8(' Выбор темы ') .. fa.BRUSH, nil,
+                          imgui.WindowFlags.NoCollapse +
+                          imgui.WindowFlags.NoResize +
+                          imgui.WindowFlags.AlwaysAutoResize) then
+    change_dpi()
+
+    -- === Custom (MoonMonet) – показываем только если есть MoonMonet ===
+    if monet_no_errors then
+        if imgui.RadioButtonIntPtr(u8("Custom"), MODULE.Main.theme, 0) then
+            moon_monet_edit()
+            apply_moonmonet_theme()
+            settings.general.helper_theme = 0
+            save_settings()
+            imgui.CloseCurrentPopup()
+        end
+        imgui.SameLine()
+        if imgui.ColorEdit3('##theme_color_custom', MODULE.Main.mmcolor,
+                            imgui.ColorEditFlags.NoInputs) then
+            if MODULE.Main.theme[0] == 0 then
+                moon_monet_edit()
+                apply_moonmonet_theme()
+                save_settings()
+            end
+        end
+    else
+        -- Если MoonMonet нет, показываем неактивную или с сообщением
+        if imgui.RadioButtonIntPtr(u8(" Custom "), MODULE.Main.theme, 0) then
+            sampAddChatMessage(script_tag ..
+                               ' {ffffff}Установите библиотеку MoonMonet!',
+                               message_color)
+        end
+    end
+
+    -- === Dark Theme (доступна всегда) ===
+    if imgui.RadioButtonIntPtr(u8(" Dark Theme "), MODULE.Main.theme, 1) then
+        settings.general.helper_theme = 1
+        save_settings()
+        apply_dark_theme()
+        imgui.CloseCurrentPopup()
+    end
+
+    -- === White Theme (доступна всегда) ===
+    if imgui.RadioButtonIntPtr(u8(" White Theme "), MODULE.Main.theme, 2) then
+        settings.general.helper_theme = 2
+        save_settings()
+        apply_white_theme()
+        imgui.CloseCurrentPopup()
+    end
+
+    -- === Game Style (доступна всегда) ===
+    if imgui.RadioButtonIntPtr(u8(" Game Style "), MODULE.Main.theme, 3) then
+        settings.general.helper_theme = 3
+        save_settings()
+        apply_gamestyle_theme()
+        imgui.CloseCurrentPopup()
+    end
+
+    imgui.Separator()
+
+    -- Кнопка закрытия
+    if imgui.Button(fa.CIRCLE_XMARK .. u8(' Закрыть'),
+                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+        imgui.CloseCurrentPopup()
+    end
+
+    imgui.EndPopup()
+end
                 imgui.NextColumn()
                 imgui.CenterColumnText(fa.MESSAGE ..
                                            u8(
@@ -10648,6 +10831,83 @@ imgui.OnFrame(function() return MODULE.Note.Window[0] end, function(player)
     imgui.End()
 end)
 ------------------------------------------ FRACTION GUI -------------------------------------------
+function load_update_news()
+    local path = modules.update_info.path  -- путь должен быть определён в modules
+    if not doesFileExist(path) then
+        sampAddChatMessage(script_tag .. " {ffffff}Файл с новостями не найден.", message_color)
+        return
+    end
+    local file = io.open(path, "r")
+    if not file then return end
+    local content = file:read("*a")
+    file:close()
+    local ok, data = pcall(decodeJson, content)
+    if ok and data and data.news then
+        MODULE.Update.news = data.news
+        sampAddChatMessage(script_tag .. " {ffffff}Новости загружены.", message_color)
+    else
+        sampAddChatMessage(script_tag .. " {ffffff}Ошибка загрузки новостей.", message_color)
+    end
+end
+
+function moon_monet_edit()
+    local r, g, b = MODULE.Main.mmcolor[0] * 255, MODULE.Main.mmcolor[1] * 255,
+                    MODULE.Main.mmcolor[2] * 255
+    local argb = join_argb(0, r, g, b)
+    settings.general.helper_theme = 0
+    settings.general.moonmonet_theme_color = argb
+    settings.general.message_color = argb
+    message_color = "0x" .. argbToHexWithoutAlpha(0, r, g, b)
+    message_color_hex = '{' .. argbToHexWithoutAlpha(0, r, g, b) .. '}'
+    MODULE.Main.msgcolor[0], MODULE.Main.msgcolor[1], MODULE.Main.msgcolor[2] =
+        color_to_float3(settings.general.message_color)
+end
+
+function replaceMentions(text)
+    -- Получаем свой ID один раз для сравнения
+    local myId = select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))
+
+    local function repl(id)
+        id = tonumber(id)
+        -- Проверяем, подключён ли игрок (включая себя)
+        if id == myId then
+            -- Свой ID: возвращаем "@" + свой ник
+            return "@" .. sampGetPlayerNickname(myId)
+        elseif sampIsPlayerConnected(id) then
+            -- Чужой онлайн-игрок
+            return "@" .. sampGetPlayerNickname(id)
+        else
+            -- Игрок офлайн или не существует – оставляем как есть
+            return "@" .. id
+        end
+    end
+    return text:gsub("@(%d+)", repl)
+end
+
+-- Основная функция выбора действия
+function pressActionKey()
+    if isCharInAnyCar(PLAYER_PED) then
+        -- Если в машине, используем специальную функцию
+        setVirtualKeyDown(72, true)
+        wait(1000) -- задержка на секунду
+        setVirtualKeyDown(72, false) -- отпускание 87 клавиши (W)
+    else
+        -- Если пешком, используем проверенный метод
+        sendClickKeySync(192) -- 192 = сумма ID оружия и кода действия
+    end
+end
+
+function sendClickKeySync(key)
+    local data = allocateMemory(68)
+    local _, myId = sampGetPlayerIdByCharHandle(PLAYER_PED)
+    sampStorePlayerOnfootData(myId, data)
+
+    local weaponId = getCurrentCharWeapon(PLAYER_PED)
+    setStructElement(data, 36, 1, weaponId + tonumber(key), true)
+    sampSendOnfootData(data)
+    freeMemory(data)
+end
+
 function render_fractions_functions()
     local function render_assist_item(name, description, tbl, key, isVip, func)
         imgui.Separator()
@@ -10724,6 +10984,15 @@ function render_fractions_functions()
         render_assist_item("RP проверка документов",
                            "Автоматически принимает документы из /offer\nТак-же через RP отыгровку проверяет их, затем возвращает.",
                            settings.general, "auto_accept_docs")
+        render_assist_item("Авто-открытие дверей",
+                           "Автоматически нажимает кнопку H везде где это нужно, открывает двери/ворота/шлакбаумы и т.д",
+                           settings.md, "auto_door")
+        render_assist_item("Авто-доклад",
+                           "Автоматический доклад при заступлении на пеший пост",
+                           settings.md, "auto_doklad_post")
+        render_assist_item("Упоминание",
+                           "Упоминание в чате, также замена ID на NickName игрока",
+                           settings.general, "ping")
         if not isMode('none') then
             render_assist_item("Обновление списка /mb",
                                "Автоматически обновляет список сотрудников в /mb каждые 3 секунды.",
@@ -12667,7 +12936,7 @@ end)
 imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(700 * settings.general.custom_dpi,
+    imgui.SetNextWindowSize(imgui.ImVec2(750 * settings.general.custom_dpi,
                                          425 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
     imgui.Begin(
@@ -12677,7 +12946,7 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
     change_dpi()
 
     -- Строка поиска и кнопки "Включить всё / Отключить всё"
-    imgui.PushItemWidth(485 * settings.general.custom_dpi)
+    imgui.PushItemWidth(420 * settings.general.custom_dpi)
     imgui.InputTextWithHint(u8 '##inputsearch_weapon_name', u8(
                                 'Вводите чтобы искать оружие по его ID или названию...'),
                             MODULE.RPWeapon.input_search, 256)
@@ -12696,17 +12965,68 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
         end
         save_module('rpgun')
     end
+    imgui.SameLine()
+    if imgui.Button(u8("Замена задержек")) then
+        for _, value in ipairs(modules.rpgun.data.rp_guns) do
+            _G.reset_delay_value = imgui.new.float(tonumber(value.waiting)) -- значение по умолчанию
+        end
+
+        imgui.OpenPopup(fa.ARROWS_ROTATE ..
+                            u8 " Установить задержку для всего оружия " ..
+                            fa.ARROWS_ROTATE)
+    end
+
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+    if imgui.BeginPopupModal(fa.ARROWS_ROTATE ..
+                                 u8 " Установить задержку для всего оружия " ..
+                                 fa.ARROWS_ROTATE, nil,
+                             imgui.WindowFlags.NoCollapse +
+                                 imgui.WindowFlags.NoResize +
+                                 imgui.WindowFlags.AlwaysAutoResize) then
+        change_dpi()
+        imgui.PushItemWidth(200 * settings.general.custom_dpi)
+        if imgui.InputFloat('##reset_delay_input', _G.reset_delay_value, 0.1,
+                            1.0, '%.1f') then
+            if _G.reset_delay_value[0] < 0.1 then
+                _G.reset_delay_value[0] = 0.1
+            end
+            if _G.reset_delay_value[0] > 30.0 then
+                _G.reset_delay_value[0] = 30.0
+            end
+        end
+        imgui.SameLine()
+        imgui.Text(u8 "сек (0.1 - 30.0)")
+        imgui.Separator()
+        if imgui.Button(fa.CIRCLE_XMARK .. u8 " Отмена",
+                        imgui.ImVec2(150 * settings.general.custom_dpi,
+                                     25 * settings.general.custom_dpi)) then
+            imgui.CloseCurrentPopup()
+        end
+        imgui.SameLine()
+        if imgui.Button(fa.FLOPPY_DISK .. u8 " Сохранить",
+                        imgui.ImVec2(150 * settings.general.custom_dpi,
+                                     25 * settings.general.custom_dpi)) then
+            local new_delay = tostring(_G.reset_delay_value[0])
+            for _, value in ipairs(modules.rpgun.data.rp_guns) do
+                value.waiting = new_delay
+            end
+            save_module('rpgun')
+            imgui.CloseCurrentPopup()
+        end
+        imgui.EndPopup()
+    end
 
     -- Основная таблица
     if imgui.BeginChild('##rpguns1',
-                        imgui.ImVec2(688 * settings.general.custom_dpi,
+                        imgui.ImVec2(738 * settings.general.custom_dpi,
                                      361 * settings.general.custom_dpi), true) then
         imgui.Columns(4)
         imgui.CenterColumnText(u8 "Работоспособность")
         imgui.SetColumnWidth(-1, 140 * settings.general.custom_dpi)
         imgui.NextColumn()
         imgui.CenterColumnText(u8 "ID и название оружия")
-        imgui.SetColumnWidth(-1, 270 * settings.general.custom_dpi)
+        imgui.SetColumnWidth(-1, 320 * settings.general.custom_dpi)
         imgui.NextColumn()
         imgui.CenterColumnText(u8 "Расположение")
         imgui.SetColumnWidth(-1, 140 * settings.general.custom_dpi)
@@ -12718,11 +13038,14 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
 
         local decoded_input =
             u8:decode(ffi.string(MODULE.RPWeapon.input_search))
+        local search_num = tonumber(decoded_input)
 
         for index, value in ipairs(modules.rpgun.data.rp_guns) do
             if decoded_input == '' or
                 (value.name and value.name:upper():find(decoded_input:upper())) or
-                value.id == tonumber(decoded_input) then
+                value.id == search_num or
+                (search_num and
+                    tostring(value.waiting):find(tostring(search_num), 1, true)) then
 
                 imgui.Columns(4)
 
@@ -12845,8 +13168,8 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
 
                 -- 4. Задержка + кнопка редактирования
                 local waiting_val = tonumber(value.waiting) or 1.0
-                local waiting_str = string.format("%.1f с", waiting_val)
-                imgui.CenterColumnText(u8(waiting_str))
+                local waiting_text = string.format("%.1f", waiting_val) .. " с"
+                imgui.CenterColumnText(u8(waiting_text)) -- u8 преобразует из CP1251 в UTF-8? Нет, u8() ожидает UTF-8 и ничего не делает, это просто метка.
                 imgui.SameLine()
                 if imgui.SmallButton(fa.PEN_TO_SQUARE .. '##weapon_delay' ..
                                          index) then
@@ -12870,7 +13193,7 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                     change_dpi()
                     imgui.PushItemWidth(200 * settings.general.custom_dpi)
                     if imgui.InputFloat('##delay_input', _G.delay_input, 0.1,
-                                        1.0, '%.1f с') then
+                                        1.0, '%.1f') then
                         -- Ограничиваем значение при вводе
                         if _G.delay_input[0] < 0.1 then
                             _G.delay_input[0] = 0.1
@@ -12880,7 +13203,7 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                         end
                     end
                     imgui.SameLine()
-                    imgui.Text(u8 "(0.1 - 30.0)")
+                    imgui.Text(u8 "сек (0.1 - 30.0)")
                     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
                                     imgui.ImVec2(
                                         150 * settings.general.custom_dpi,
@@ -13541,6 +13864,109 @@ function apply_white_theme()
                                                                        0.80,
                                                                        0.80, 0.8);
 end
+
+function apply_gamestyle_theme()
+    imgui.SwitchContext()
+    -- Настройки стиля (можно подобрать свои значения)
+    imgui.GetStyle().WindowPadding = imgui.ImVec2(8 *
+                                                      settings.general
+                                                          .custom_dpi, 8 *
+                                                      settings.general
+                                                          .custom_dpi)
+    imgui.GetStyle().FramePadding = imgui.ImVec2(
+                                        6 * settings.general.custom_dpi,
+                                        4 * settings.general.custom_dpi)
+    imgui.GetStyle().ItemSpacing = imgui.ImVec2(8 * settings.general.custom_dpi,
+                                                4 * settings.general.custom_dpi)
+    imgui.GetStyle().ItemInnerSpacing = imgui.ImVec2(4 *
+                                                         settings.general
+                                                             .custom_dpi, 4 *
+                                                         settings.general
+                                                             .custom_dpi)
+    imgui.GetStyle().IndentSpacing = 0
+    imgui.GetStyle().ScrollbarSize = (IS_MOBILE and 15 or 10) *
+                                         settings.general.custom_dpi
+    imgui.GetStyle().GrabMinSize = 10 * settings.general.custom_dpi
+    imgui.GetStyle().WindowBorderSize = 2 * settings.general.custom_dpi
+    imgui.GetStyle().ChildBorderSize = 2 * settings.general.custom_dpi
+    imgui.GetStyle().PopupBorderSize = 2 * settings.general.custom_dpi
+    imgui.GetStyle().FrameBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().TabBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().WindowRounding = 12 * settings.general.custom_dpi
+    imgui.GetStyle().ChildRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().FrameRounding = 6 * settings.general.custom_dpi
+    imgui.GetStyle().PopupRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().ScrollbarRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().GrabRounding = 6 * settings.general.custom_dpi
+    imgui.GetStyle().TabRounding = 6 * settings.general.custom_dpi
+    imgui.GetStyle().WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
+    imgui.GetStyle().ButtonTextAlign = imgui.ImVec2(0.5, 0.5)
+    imgui.GetStyle().SelectableTextAlign = imgui.ImVec2(0.5, 0.5)
+
+    -- Цветовая схема (можно менять под свой вкус)
+    local bg = imgui.ImVec4(0.08, 0.08, 0.10, 0.95) -- тёмный фон окна
+    local bgPanel = imgui.ImVec4(0.12, 0.12, 0.15, 1.0) -- фон элементов
+    local accent = imgui.ImVec4(0.95, 0.65, 0.15, 1.0) -- оранжевый акцент
+    local accentHover = imgui.ImVec4(1.0, 0.75, 0.25, 1.0)
+    local accentActive = imgui.ImVec4(0.85, 0.55, 0.10, 1.0)
+    local text = imgui.ImVec4(0.95, 0.95, 0.95, 1.0)
+    local textDisabled = imgui.ImVec4(0.60, 0.60, 0.60, 1.0)
+    local border = imgui.ImVec4(0.30, 0.30, 0.35, 0.8)
+
+    imgui.GetStyle().Colors[imgui.Col.Text] = text
+    imgui.GetStyle().Colors[imgui.Col.TextDisabled] = textDisabled
+    imgui.GetStyle().Colors[imgui.Col.WindowBg] = bg
+    imgui.GetStyle().Colors[imgui.Col.ChildBg] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.PopupBg] = bg
+    imgui.GetStyle().Colors[imgui.Col.Border] = border
+    imgui.GetStyle().Colors[imgui.Col.BorderShadow] = imgui.ImVec4(0, 0, 0, 0)
+    imgui.GetStyle().Colors[imgui.Col.FrameBg] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.FrameBgHovered] =
+        imgui.ImVec4(0.20, 0.20, 0.25, 1.0)
+    imgui.GetStyle().Colors[imgui.Col.FrameBgActive] =
+        imgui.ImVec4(0.25, 0.25, 0.30, 1.0)
+    imgui.GetStyle().Colors[imgui.Col.TitleBg] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.TitleBgActive] = accent
+    imgui.GetStyle().Colors[imgui.Col.TitleBgCollapsed] = bg
+    imgui.GetStyle().Colors[imgui.Col.MenuBarBg] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.ScrollbarBg] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.ScrollbarGrab] = accent
+    imgui.GetStyle().Colors[imgui.Col.ScrollbarGrabHovered] = accentHover
+    imgui.GetStyle().Colors[imgui.Col.ScrollbarGrabActive] = accentActive
+    imgui.GetStyle().Colors[imgui.Col.CheckMark] = accent
+    imgui.GetStyle().Colors[imgui.Col.SliderGrab] = accent
+    imgui.GetStyle().Colors[imgui.Col.SliderGrabActive] = accentActive
+    imgui.GetStyle().Colors[imgui.Col.Button] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.ButtonHovered] = accent
+    imgui.GetStyle().Colors[imgui.Col.ButtonActive] = accentActive
+    imgui.GetStyle().Colors[imgui.Col.Header] = accent
+    imgui.GetStyle().Colors[imgui.Col.HeaderHovered] = accentHover
+    imgui.GetStyle().Colors[imgui.Col.HeaderActive] = accentActive
+    imgui.GetStyle().Colors[imgui.Col.Separator] = border
+    imgui.GetStyle().Colors[imgui.Col.SeparatorHovered] = accentHover
+    imgui.GetStyle().Colors[imgui.Col.SeparatorActive] = accentActive
+    imgui.GetStyle().Colors[imgui.Col.ResizeGrip] = accent
+    imgui.GetStyle().Colors[imgui.Col.ResizeGripHovered] = accentHover
+    imgui.GetStyle().Colors[imgui.Col.ResizeGripActive] = accentActive
+    imgui.GetStyle().Colors[imgui.Col.Tab] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.TabHovered] = accent
+    imgui.GetStyle().Colors[imgui.Col.TabActive] = accentActive
+    imgui.GetStyle().Colors[imgui.Col.TabUnfocused] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.TabUnfocusedActive] = bgPanel
+    imgui.GetStyle().Colors[imgui.Col.PlotLines] = accent
+    imgui.GetStyle().Colors[imgui.Col.PlotLinesHovered] = accentHover
+    imgui.GetStyle().Colors[imgui.Col.PlotHistogram] = accent
+    imgui.GetStyle().Colors[imgui.Col.PlotHistogramHovered] = accentHover
+    imgui.GetStyle().Colors[imgui.Col.TextSelectedBg] = accent
+    imgui.GetStyle().Colors[imgui.Col.DragDropTarget] = accent
+    imgui.GetStyle().Colors[imgui.Col.NavHighlight] = accent
+    imgui.GetStyle().Colors[imgui.Col.NavWindowingHighlight] = accent
+    imgui.GetStyle().Colors[imgui.Col.NavWindowingDimBg] =
+        imgui.ImVec4(0, 0, 0, 0.5)
+    imgui.GetStyle().Colors[imgui.Col.ModalWindowDimBg] =
+        imgui.ImVec4(0, 0, 0, 0.7)
+end
+
 function apply_moonmonet_theme()
     local generated_color = moon_monet.buildColors(settings.general
                                                        .moonmonet_theme_color,
