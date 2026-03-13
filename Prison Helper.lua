@@ -1124,9 +1124,9 @@ local modules = {
     },
     update_info = {
         name = 'Информация об обновлениях',
-    path = config_dir .. "/update-info.json",
-    data = {}
-    },
+        path = config_dir .. "/update-info.json",
+        data = {}
+    }
 }
 function load_module(key)
     local obj = modules[key]
@@ -1364,12 +1364,12 @@ local MODULE = {
     },
     Update = {
         Window = imgui.new.bool(),
-    is_need_update = false,
-    version = "",
-    url = "",
-    info = "",
-    download_file = "",
-    news = {}  -- для хранения массива новостей
+        is_need_update = false,
+        version = "",
+        url = "",
+        info = "",
+        download_file = "",
+        news = {} -- для хранения массива новостей
     },
     FastMenuButton = {Window = imgui.new.bool()},
     FastMenuPlayers = {Window = imgui.new.bool()},
@@ -3176,7 +3176,7 @@ function main()
     check_update()
 
     MODULE.Update.news = {}
-load_update_news()  -- если файл уже есть, он загрузится
+    load_update_news() -- если файл уже есть, он загрузится
 
     while true do
         wait(0)
@@ -5766,7 +5766,7 @@ function count_lines_in_text(text, max_length)
     if current_line ~= "" then table.insert(lines, current_line) end
     return tonumber(#lines)
 end
-function downloadFileFromUrlToPath(url, path) 
+function downloadFileFromUrlToPath(url, path)
     print('Начинаю скачивание файла в ' .. path)
     local function on_finish_download()
         if download_file == 'update' then
@@ -5860,14 +5860,13 @@ function downloadFileFromUrlToPath(url, path)
                     'Звук оповещений успешно загружен!')
             end
         elseif download_file == 'news' then
-    sampAddChatMessage(script_tag ..
-                       ' {ffffff}Файл с новостями успешно загружен!',
-                       message_color)
-    load_update_news()
-    playNotifySound()
-        download_file = ''
+            sampAddChatMessage(script_tag ..
+                                   ' {ffffff}Файл с новостями успешно загружен!',
+                               message_color)
+            load_update_news()
+            playNotifySound()
+        end
     end
-end
     if IS_MOBILE then
         local function downloadToFile(url, path)
             local http = require("socket.http")
@@ -8481,8 +8480,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
             end
             imgui.EndTabItem()
         end
-        if imgui.BeginTabItem(fa.RECTANGLE_LIST ..
-                                  u8 ' Основное') then
+        if imgui.BeginTabItem(fa.RECTANGLE_LIST .. u8 ' Основное') then
             if imgui.BeginTabBar('Список всех команд') then
                 if imgui.BeginTabItem(fa.BARS ..
                                           u8 ' Стандартные команды') then
@@ -10029,77 +10027,91 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
             imgui.EndTabItem()
         end
         if imgui.BeginTabItem(fa.BOOK .. u8 ' Обновления') then
-    if imgui.BeginChild('##updates_child',
-                        imgui.ImVec2(589 * settings.general.custom_dpi,
-                                     367 * settings.general.custom_dpi), true) then
-        imgui.CenterText(fa.CLOUD_ARROW_DOWN .. u8 ' История обновлений ' .. fa.CLOUD_ARROW_DOWN)
-        imgui.Separator()
+            if imgui.BeginChild('##updates_child',
+                                imgui.ImVec2(589 * settings.general.custom_dpi,
+                                             367 * settings.general.custom_dpi),
+                                true) then
+                imgui.CenterText(fa.CLOUD_ARROW_DOWN ..
+                                     u8 ' История обновлений ' ..
+                                     fa.CLOUD_ARROW_DOWN)
+                imgui.Separator()
 
-        -- Загружаем новости при первом открытии, если ещё не загружены
-        if not MODULE.Update.news then
-            MODULE.Update.news = {}
-            load_update_news()  -- функция загрузки (см. ниже)
-        end
+                -- Загружаем новости при первом открытии, если ещё не загружены
+                if not MODULE.Update.news then
+                    MODULE.Update.news = {}
+                    load_update_news() -- функция загрузки (см. ниже)
+                end
 
-        if imgui.Button(u8("Загрузить новости"),
-                imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
-    download_file = 'news'
-    downloadFileFromUrlToPath('https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update-info.json',
-                              modules.update_info.path)
-end
+                if imgui.Button(u8("Загрузить новости"),
+                                imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+                    download_file = 'news'
+                    downloadFileFromUrlToPath(
+                        'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update-info.json',
+                        modules.update_info.path)
+                end
 
-        imgui.Separator()
+                imgui.Separator()
 
-        -- Вывод новостей
-        if MODULE.Update.news and #MODULE.Update.news > 0 then
-            for _, item in ipairs(MODULE.Update.news) do
-                local header = string.format("%s (%s) - %s", item.title, item.version, item.date)
-                if imgui.CollapsingHeader(u8(header)) then
-                    if type(item.text) == "table" then
-                        for _, line in ipairs(item.text) do
-                            imgui.BulletText(u8(line))
+                -- Вывод новостей
+                if MODULE.Update.news and #MODULE.Update.news > 0 then
+                    for _, item in ipairs(MODULE.Update.news) do
+                        local header = string.format("%s (%s) - %s", item.title,
+                                                     item.version, item.date)
+                        if imgui.CollapsingHeader(u8(header)) then
+                            if type(item.text) == "table" then
+                                for _, line in ipairs(item.text) do
+                                    imgui.BulletText(u8(line))
+                                end
+                            else
+                                imgui.TextWrapped(u8(item.text))
+                            end
+                        end
+                    end
+                else
+                    imgui.Text(u8(
+                                   "Нет данных об обновлениях. Нажмите кнопку выше для загрузки."))
+                end
+
+                imgui.Separator()
+
+                -- Проверка наличия новой версии (сравниваем с последней в списке)
+                if MODULE.Update.news and #MODULE.Update.news > 0 then
+                    local latest = MODULE.Update.news[1] -- предполагаем, что новости отсортированы по убыванию
+                    if latest.version and thisScript().version ~= latest.version then
+                        imgui.TextColored(imgui.ImVec4(1, 1, 0, 1),
+                                          u8(
+                                              "Доступно обновление до версии ") ..
+                                              u8(latest.version))
+                        -- Если есть ссылка для скачивания (можно добавить в JSON), то покажем кнопку
+                        -- Например, если в последней новости есть поле download_url
+                        if latest.download_url then
+                            if imgui.Button(fa.DOWNLOAD ..
+                                                u8(
+                                                    " Скачать обновление"),
+                                            imgui.ImVec2(
+                                                imgui.GetMiddleButtonX(1), 0)) then
+                                if thisScript().version:find('VIP') then
+                                    sampAddChatMessage(script_tag ..
+                                                           ' {ffffff}Используйте команду /ph в нашем Telegram/Discord VIP боте!',
+                                                       message_color)
+                                else
+                                    download_file = 'helper'
+                                    downloadFileFromUrlToPath(
+                                        latest.download_url,
+                                        worked_dir .. "/Prison Helper.lua")
+                                end
+                            end
                         end
                     else
-                        imgui.TextWrapped(u8(item.text))
+                        imgui.TextColored(imgui.ImVec4(0, 1, 0, 1), u8(
+                                              "У вас актуальная версия"))
                     end
                 end
+
+                imgui.EndChild()
             end
-        else
-            imgui.Text(u8("Нет данных об обновлениях. Нажмите кнопку выше для загрузки."))
+            imgui.EndTabItem()
         end
-
-        imgui.Separator()
-
-        -- Проверка наличия новой версии (сравниваем с последней в списке)
-        if MODULE.Update.news and #MODULE.Update.news > 0 then
-            local latest = MODULE.Update.news[1]  -- предполагаем, что новости отсортированы по убыванию
-            if latest.version and thisScript().version ~= latest.version then
-                imgui.TextColored(imgui.ImVec4(1,1,0,1), u8("Доступно обновление до версии ") .. u8(latest.version))
-                -- Если есть ссылка для скачивания (можно добавить в JSON), то покажем кнопку
-                -- Например, если в последней новости есть поле download_url
-                if latest.download_url then
-                    if imgui.Button(fa.DOWNLOAD .. u8(" Скачать обновление"),
-                                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
-                        if thisScript().version:find('VIP') then
-                            sampAddChatMessage(script_tag ..
-                                               ' {ffffff}Используйте команду /ph в нашем Telegram/Discord VIP боте!',
-                                               message_color)
-                        else
-                            download_file = 'helper'
-                            downloadFileFromUrlToPath(latest.download_url,
-                                                       worked_dir .. "/Prison Helper.lua")
-                        end
-                    end
-                end
-            else
-                imgui.TextColored(imgui.ImVec4(0,1,0,1), u8("У вас актуальная версия"))
-            end
-        end
-
-        imgui.EndChild()
-    end
-    imgui.EndTabItem()
-end
         if imgui.BeginTabItem(fa.GEAR .. u8 ' Настройки') then
             if imgui.BeginChild('##1',
                                 imgui.ImVec2(589 * settings.general.custom_dpi,
@@ -10175,83 +10187,91 @@ end
                                      fa.PALETTE)
                 imgui.Separator()
                 imgui.Columns(3)
-                imgui.CenterColumnText(fa.BRUSH .. u8(' Цвет интерфейса'))
+                imgui.CenterColumnText(fa.BRUSH ..
+                                           u8(' Цвет интерфейса'))
 
--- Кнопка для открытия окна выбора темы (доступна всегда)
-if imgui.CenterColumnButton(u8(' Выбрать тему... ')) then
-    imgui.OpenPopup(fa.BRUSH .. u8(' Выбор темы ') .. fa.BRUSH)
-end
+                -- Кнопка для открытия окна выбора темы (доступна всегда)
+                if imgui.CenterColumnButton(u8(' Выбрать тему... ')) then
+                    imgui.OpenPopup(fa.BRUSH .. u8(' Выбор темы ') ..
+                                        fa.BRUSH)
+                end
 
--- Модальное окно выбора темы (доступно всегда)
-imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
-                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
-if imgui.BeginPopupModal(fa.BRUSH .. u8(' Выбор темы ') .. fa.BRUSH, nil,
-                          imgui.WindowFlags.NoCollapse +
-                          imgui.WindowFlags.NoResize +
-                          imgui.WindowFlags.AlwaysAutoResize) then
-    change_dpi()
+                -- Модальное окно выбора темы (доступно всегда)
+                imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                if imgui.BeginPopupModal(
+                    fa.BRUSH .. u8(' Выбор темы ') .. fa.BRUSH, nil,
+                    imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+                        imgui.WindowFlags.AlwaysAutoResize) then
+                    change_dpi()
 
-    -- === Custom (MoonMonet) – показываем только если есть MoonMonet ===
-    if monet_no_errors then
-        if imgui.RadioButtonIntPtr(u8("Custom"), MODULE.Main.theme, 0) then
-            moon_monet_edit()
-            apply_moonmonet_theme()
-            settings.general.helper_theme = 0
-            save_settings()
-            imgui.CloseCurrentPopup()
-        end
-        imgui.SameLine()
-        if imgui.ColorEdit3('##theme_color_custom', MODULE.Main.mmcolor,
-                            imgui.ColorEditFlags.NoInputs) then
-            if MODULE.Main.theme[0] == 0 then
-                moon_monet_edit()
-                apply_moonmonet_theme()
-                save_settings()
-            end
-        end
-    else
-        -- Если MoonMonet нет, показываем неактивную или с сообщением
-        if imgui.RadioButtonIntPtr(u8(" Custom "), MODULE.Main.theme, 0) then
-            sampAddChatMessage(script_tag ..
-                               ' {ffffff}Установите библиотеку MoonMonet!',
-                               message_color)
-        end
-    end
+                    -- === Custom (MoonMonet) – показываем только если есть MoonMonet ===
+                    if monet_no_errors then
+                        if imgui.RadioButtonIntPtr(u8("Custom"),
+                                                   MODULE.Main.theme, 0) then
+                            moon_monet_edit()
+                            apply_moonmonet_theme()
+                            settings.general.helper_theme = 0
+                            save_settings()
+                            imgui.CloseCurrentPopup()
+                        end
+                        imgui.SameLine()
+                        if imgui.ColorEdit3('##theme_color_custom',
+                                            MODULE.Main.mmcolor,
+                                            imgui.ColorEditFlags.NoInputs) then
+                            if MODULE.Main.theme[0] == 0 then
+                                moon_monet_edit()
+                                apply_moonmonet_theme()
+                                save_settings()
+                            end
+                        end
+                    else
+                        -- Если MoonMonet нет, показываем неактивную или с сообщением
+                        if imgui.RadioButtonIntPtr(u8(" Custom "),
+                                                   MODULE.Main.theme, 0) then
+                            sampAddChatMessage(script_tag ..
+                                                   ' {ffffff}Установите библиотеку MoonMonet!',
+                                               message_color)
+                        end
+                    end
 
-    -- === Dark Theme (доступна всегда) ===
-    if imgui.RadioButtonIntPtr(u8(" Dark Theme "), MODULE.Main.theme, 1) then
-        settings.general.helper_theme = 1
-        save_settings()
-        apply_dark_theme()
-        imgui.CloseCurrentPopup()
-    end
+                    -- === Dark Theme (доступна всегда) ===
+                    if imgui.RadioButtonIntPtr(u8(" Dark Theme "),
+                                               MODULE.Main.theme, 1) then
+                        settings.general.helper_theme = 1
+                        save_settings()
+                        apply_dark_theme()
+                        imgui.CloseCurrentPopup()
+                    end
 
-    -- === White Theme (доступна всегда) ===
-    if imgui.RadioButtonIntPtr(u8(" White Theme "), MODULE.Main.theme, 2) then
-        settings.general.helper_theme = 2
-        save_settings()
-        apply_white_theme()
-        imgui.CloseCurrentPopup()
-    end
+                    -- === White Theme (доступна всегда) ===
+                    if imgui.RadioButtonIntPtr(u8(" White Theme "),
+                                               MODULE.Main.theme, 2) then
+                        settings.general.helper_theme = 2
+                        save_settings()
+                        apply_white_theme()
+                        imgui.CloseCurrentPopup()
+                    end
 
-    -- === Game Style (доступна всегда) ===
-    if imgui.RadioButtonIntPtr(u8(" Game Style "), MODULE.Main.theme, 3) then
-        settings.general.helper_theme = 3
-        save_settings()
-        apply_gamestyle_theme()
-        imgui.CloseCurrentPopup()
-    end
+                    -- === Game Style (доступна всегда) ===
+                    if imgui.RadioButtonIntPtr(u8(" Game Style "),
+                                               MODULE.Main.theme, 3) then
+                        settings.general.helper_theme = 3
+                        save_settings()
+                        apply_gamestyle_theme()
+                        imgui.CloseCurrentPopup()
+                    end
 
-    imgui.Separator()
+                    imgui.Separator()
 
-    -- Кнопка закрытия
-    if imgui.Button(fa.CIRCLE_XMARK .. u8(' Закрыть'),
-                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
-        imgui.CloseCurrentPopup()
-    end
+                    -- Кнопка закрытия
+                    if imgui.Button(fa.CIRCLE_XMARK .. u8(' Закрыть'),
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+                        imgui.CloseCurrentPopup()
+                    end
 
-    imgui.EndPopup()
-end
+                    imgui.EndPopup()
+                end
                 imgui.NextColumn()
                 imgui.CenterColumnText(fa.MESSAGE ..
                                            u8(
@@ -10832,9 +10852,11 @@ imgui.OnFrame(function() return MODULE.Note.Window[0] end, function(player)
 end)
 ------------------------------------------ FRACTION GUI -------------------------------------------
 function load_update_news()
-    local path = modules.update_info.path  -- путь должен быть определён в modules
+    local path = modules.update_info.path -- путь должен быть определён в modules
     if not doesFileExist(path) then
-        sampAddChatMessage(script_tag .. " {ffffff}Файл с новостями не найден.", message_color)
+        sampAddChatMessage(script_tag ..
+                               " {ffffff}Файл с новостями не найден.",
+                           message_color)
         return
     end
     local file = io.open(path, "r")
@@ -10844,9 +10866,13 @@ function load_update_news()
     local ok, data = pcall(decodeJson, content)
     if ok and data and data.news then
         MODULE.Update.news = data.news
-        sampAddChatMessage(script_tag .. " {ffffff}Новости загружены.", message_color)
+        sampAddChatMessage(script_tag ..
+                               " {ffffff}Новости загружены.",
+                           message_color)
     else
-        sampAddChatMessage(script_tag .. " {ffffff}Ошибка загрузки новостей.", message_color)
+        sampAddChatMessage(script_tag ..
+                               " {ffffff}Ошибка загрузки новостей.",
+                           message_color)
     end
 end
 
