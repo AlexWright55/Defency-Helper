@@ -282,7 +282,8 @@ local modules = {
                         arg = '',
                         enable = true,
                         waiting = '2',
-                        in_fastmenu = true
+                        in_fastmenu = true,
+                        bind = {}
                     }, {
                         cmd = 'agenda',
                         description = 'Выдача повестки игроку',
@@ -307,7 +308,8 @@ local modules = {
                         text = '/taser',
                         arg = '',
                         enable = true,
-                        waiting = '2'
+                        waiting = '2',
+                        bind = {}
                     }, {
                         cmd = 'cuff',
                         description = 'Надеть наручники',
@@ -354,14 +356,16 @@ local modules = {
                         text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки включил{sex} боди камеру.&/do Скрытая боди камера включена и снимает всё происходящее.',
                         arg = '',
                         enable = true,
-                        waiting = '3.5'
+                        waiting = '3.5',
+                        bind = {}
                     }, {
                         cmd = 'camoff',
                         description = 'Выключить cкрытую боди камеру',
                         text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки выключил{sex} боди камеру.&/do Скрытая боди камера выключена и больше не снимает всё происходящее.',
                         arg = '',
                         enable = true,
-                        waiting = '3.5'
+                        waiting = '3.5',
+                        bind = {}
                     }
                 }
             },
@@ -10609,10 +10613,20 @@ imgui.OnFrame(function() return MODULE.Binder.Window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
     if imgui.BeginPopupModal(fa.CLOCK ..
-                                 u8 ' Задержка (в секундах) ' ..
-                                 fa.CLOCK, _, imgui.WindowFlags.NoResize) then
-        imgui.PushItemWidth(250 * settings.general.custom_dpi)
-        imgui.SliderFloat(u8 '##waiting', MODULE.Binder.waiting_slider, 0.3, 10)
+                             u8 ' Задержка (в секундах) ' ..
+                             fa.CLOCK, _, imgui.WindowFlags.NoResize) then
+    -- Поле для ручного ввода
+    imgui.PushItemWidth(100 * settings.general.custom_dpi)
+    if imgui.InputFloat("##input_waiting", MODULE.Binder.waiting_slider, 0.1, 1.0, "%.2f") then
+        -- Ограничиваем значение диапазоном [0.3, 10.0]
+        if MODULE.Binder.waiting_slider[0] < 0.3 then MODULE.Binder.waiting_slider[0] = 0.3 end
+        if MODULE.Binder.waiting_slider[0] > 10.0 then MODULE.Binder.waiting_slider[0] = 10.0 end
+    end
+    imgui.SameLine()
+    imgui.PushItemWidth(150 * settings.general.custom_dpi)
+    imgui.SliderFloat(u8 '##waiting', MODULE.Binder.waiting_slider, 0.3, 10, "%.2f")
+    imgui.PopItemWidth()  -- для слайдера
+    imgui.PopItemWidth()  -- для поля ввода
         imgui.Separator()
         if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена##binder_wait_menu',
                         imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
@@ -10783,7 +10797,7 @@ imgui.OnFrame(function() return MODULE.Binder.Window[0] end, function(player)
                                        ffi.string(MODULE.Binder.input_text))
                                        :gsub('\n', '&')
                     command.bind = MODULE.Binder.data.change_bind
-                    command.waiting = MODULE.Binder.waiting_slider[0]
+                    command.waiting = tonumber(string.format("%.2f", MODULE.Binder.waiting_slider[0]))
                     command.enable = true
                     save_module('commands')
                     if command.arg == '' then
