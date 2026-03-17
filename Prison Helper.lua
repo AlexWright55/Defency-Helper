@@ -227,9 +227,9 @@ local modules = {
                 'skip', "[МЗ]", "[МЗП]", "[Мин.Здрав.]",
                 "[ЛСМЦ]", "[СФМЦ]", "[ЛВМЦ]", "[ДМЦ]", "[ПД]",
                 'skip', "[ЦА]", "[ЦЛ]", "[СК]", "[Пра-во]",
-                "[Губернатор]", "[Прокурор]", "[Cудья]",
-                'skip', "[СМИ]", "[СМИ ЛС]", "[СМИ СФ]",
-                "[СМИ ЛВ]"
+                "[Губернатор]", "[Адвокатура]",
+                "[Прокурор]", "[Cудья]", 'skip', "[СМИ]",
+                "[СМИ ЛС]", "[СМИ СФ]", "[СМИ ЛВ]"
             },
             dep_tags_en = {
                 "[ALL]", 'skip', "[MJ]", "[Min.Just.]", "[LSPD]", "[SFPD]",
@@ -348,6 +348,20 @@ local modules = {
                         enable = true,
                         waiting = '2',
                         in_fastmenu = true
+                    }, {
+                        cmd = 'camon',
+                        description = 'Включить cкрытую боди камеру',
+                        text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки включил{sex} боди камеру.&/do Скрытая боди камера включена и снимает всё происходящее.',
+                        arg = '',
+                        enable = true,
+                        waiting = '3.5'
+                    }, {
+                        cmd = 'camoff',
+                        description = 'Выключить cкрытую боди камеру',
+                        text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки выключил{sex} боди камеру.&/do Скрытая боди камера выключена и больше не снимает всё происходящее.',
+                        arg = '',
+                        enable = true,
+                        waiting = '3.5'
                     }
                 }
             },
@@ -1126,6 +1140,11 @@ local modules = {
         name = 'Информация об обновлениях',
         path = config_dir .. "/update-info.json",
         data = {}
+    },
+    clear = {
+        name = 'Очистка чата',
+        path = config_dir .. "/Clear.json",
+        data = {}
     }
 }
 function load_module(key)
@@ -1378,7 +1397,12 @@ local MODULE = {
     NightVision = false,
     FONT = nil,
     DEBUG = false,
-    Taser = {Window = imgui.new.bool()}
+    Taser = {Window = imgui.new.bool()},
+    ClearList = {
+        Window = imgui.new.bool(),
+        page = imgui.new.int(0),
+        itemsPerPage = 20
+    }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
                               MODULE.Post.codes)
@@ -3281,6 +3305,7 @@ function load_modules()
     load_module('notes')
     load_module('rpgun')
     load_module('arz_veh')
+    load_module('clear')
     cacheVehicleMosels()
     if settings.general.piemenu then
         if pie_no_errors then
@@ -3300,6 +3325,11 @@ function load_modules()
             MODULE.Taser.Window[0] = true
         end
     end
+
+    -- Загружаем данные Clear.json
+    modules.clear.data = load_clear_data()
+    print(
+        'Модуль "Удаление мусора" инициализирован!')
 end
 function welcome_message()
     if not sampIsLocalPlayerSpawned() then
@@ -3847,23 +3877,72 @@ function initialize_commands()
             playNotifySound()
         end
     end)
-    sampRegisterChatCommand("activate", function()
-        if thisScript().version:find('VIP') then
-            sampAddChatMessage(script_tag ..
-                                   ' {ffffff}У вас уже установлена VIP версия, и все функции вам доступны!',
-                               message_color)
+    -- Команда для добавления строки в Clear.json
+    sampRegisterChatCommand("addblock", function(arg)
+        if arg and arg ~= "" then
+            -- Проверяем, есть ли уже такая строка (регистронезависимо)
+            local exists = false
+            for _, v in ipairs(modules.clear.data) do
+                if v:lower() == arg:lower() then
+                    exists = true
+                    break
+                end
+            end
+            if not exists then
+                table.insert(modules.clear.data, arg)
+                save_module('clear')
+                sampAddChatMessage(script_tag .. " {ffffff}Строка '" ..
+                                       arg ..
+                                       "' добавлена в список фильтрации.",
+                                   message_color)
+            else
+                sampAddChatMessage(script_tag ..
+                                       " {ffffff}Такая строка уже есть в списке.",
+                                   message_color)
+            end
         else
             sampAddChatMessage(script_tag ..
-                                   ' {ffffff}К сожалению нельзя прямо из игры перейти на VIP версию!',
-                               message_color)
-            sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Перейдите в Telegram/Discord VIP бота (@mtgmods_vip_bot), и активируйте ключик',
-                               message_color)
-            sampAddChatMessage(script_tag ..
-                                   ' {ffffff}После активации ключика, в боте используйте команду /ph для получения VIP',
+                                   " {ffffff}Используйте: /addblock [текст]",
                                message_color)
         end
     end)
+
+    -- Команда для просмотра всех строк из Clear.json
+    sampRegisterChatCommand("clearlist", function()
+        MODULE.ClearList.page[0] = 0 -- сбрасываем на первую страницу при открытии
+        MODULE.ClearList.Window[0] = not MODULE.ClearList.Window[0]
+    end)
+
+    -- Команда для удаления строки из Clear.json
+    sampRegisterChatCommand("removeblock", function(arg)
+        if arg and arg ~= "" then
+            local found = false
+            for i, v in ipairs(modules.clear.data) do
+                if v == arg then
+                    table.remove(modules.clear.data, i)
+                    found = true
+                    break
+                end
+            end
+            if found then
+                save_module('clear')
+                sampAddChatMessage(script_tag .. " {ffffff}Строка '" ..
+                                       arg ..
+                                       "' удалена из списка фильтрации.",
+                                   message_color)
+            else
+                sampAddChatMessage(script_tag .. " {ffffff}Строка '" ..
+                                       arg ..
+                                       "' не найдена в списке.",
+                                   message_color)
+            end
+        else
+            sampAddChatMessage(script_tag ..
+                                   " {ffffff}Используйте: /removeblock [текст]",
+                               message_color)
+        end
+    end)
+
     sampRegisterChatCommand("debug", function()
         MODULE.DEBUG = not MODULE.DEBUG
         sampAddChatMessage(script_tag ..
@@ -5727,13 +5806,8 @@ function getAreaRu(x, y, z)
     end
     return 'Неизвестно'
 end
-function send_no_vip_msg()
-    for i = 1, 10, 1 do
-        sampAddChatMessage(script_tag ..
-                               ' {ffffff}Вы попытались использовать функционал, который недоступен в FREE версии! Купите подписку MTGVIP!',
-                           message_color)
-    end
-end
+-- Функция send_no_vip_msg полностью удалена
+
 function split_text_into_lines(text, max_length)
     local lines = {}
     local current_line = ""
@@ -5796,12 +5870,10 @@ function downloadFileFromUrlToPath(url, path)
             end
             local ok, updateInfo = pcall(readJsonFile, path)
             if updateInfo then
-                local isVip = thisScript().version:find('VIP')
-                local uVer = isVip and updateInfo.vip_current_version or
-                                 updateInfo.current_version
-                local uText = isVip and updateInfo.vip_update_info or
-                                  updateInfo.update_info
-                local uUrl = isVip and '' or updateInfo.update_url
+                -- Убрана проверка на VIP, всегда используем обычные поля
+                local uVer = updateInfo.current_version
+                local uText = updateInfo.update_info
+                local uUrl = updateInfo.update_url
 
                 print('Текущая установленная версия:',
                       thisScript().version)
@@ -6639,6 +6711,27 @@ function sampev.onServerMessage(color, text)
         end
         return {color, text}
     end
+
+    -- Проверка на "чистые" строки
+    if modules.clear and modules.clear.data and type(modules.clear.data) ==
+        'table' then
+        -- Приводим текст к нижнему регистру для сравнения
+        local lowerText = text:lower()
+        for _, pattern in ipairs(modules.clear.data) do
+            if pattern and type(pattern) == 'string' then
+                -- Приводим шаблон к нижнему регистру и ищем вхождение
+                if lowerText:find(pattern:lower(), 1, true) then
+                    -- Сообщение содержит запрещённую подстроку – скрываем
+                    if MODULE.DEBUG then
+                        sampAddChatMessage(
+                            '[Clear] Заблокировано: ' .. pattern,
+                            message_color)
+                    end
+                    return false
+                end
+            end
+        end
+    end
 end
 function sampev.onSendChat(text)
     if MODULE.DEBUG then
@@ -6763,17 +6856,6 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                                                 text:match(
                                                     "{ffffff}Организация:%s+{BE433D}([^\n\r]+)")
             local fraction_data = {
-                ['Полиция ЛС'] = {'ЛСПД', 'police'},
-                ['Полиция LS'] = {'ЛСПД', 'police'},
-                ['Полиция ЛВ'] = {'ЛВПД', 'police'},
-                ['Полиция LV'] = {'ЛВПД', 'police'},
-                ['Полиция СФ'] = {'СФПД', 'police'},
-                ['Полиция SF'] = {'СФПД', 'police'},
-                ['Полиция ВС'] = {'ВСПД', 'police'},
-                ['Полиция VC'] = {'ВСПД', 'police'},
-                ['Областная полиция'] = {'РКШД', 'police'},
-                ['FBI'] = {'ФБР', 'fbi'},
-                ['ФБР'] = {'ФБР', 'fbi'},
                 ['Тюрьма строгого режима LV'] = {
                     'ТСР', 'prison'
                 },
@@ -6784,57 +6866,11 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 ['Армия SF'] = {'СФа', 'army'},
                 ['Армия ЛС'] = {'ЛСа', 'army'},
                 ['Армия LS'] = {'ЛСа', 'army'},
-                ['TV студия'] = {'СМИ ЛС', 'smi'},
-                ['TV студия ЛС'] = {'СМИ ЛС', 'smi'},
-                ['TV студия LS'] = {'СМИ ЛС', 'smi'},
-                ['TV студия ЛВ'] = {'СМИ ЛВ', 'smi'},
-                ['TV студия LV'] = {'СМИ ЛВ', 'smi'},
-                ['TV студия СФ'] = {'СМИ СФ', 'smi'},
-                ['TV студия SF'] = {'СМИ СФ', 'smi'},
-                ['TV студия ВС'] = {'СМИ ВС', 'smi'},
-                ['TV студия VC'] = {'СМИ ВС', 'smi'},
-                ['Больница ЛС'] = {'ЛСМЦ', 'hospital'},
-                ['Больница LS'] = {'ЛСМЦ', 'hospital'},
-                ['Больница ЛВ'] = {'ЛВМЦ', 'hospital'},
-                ['Больница LV'] = {'ЛВМЦ', 'hospital'},
-                ['Больница СФ'] = {'СФМЦ', 'hospital'},
-                ['Больница SF'] = {'СФМЦ', 'hospital'},
-                ['Больница ВС'] = {'ВСМЦ', 'hospital'},
-                ['Больница VC'] = {'ВСМЦ', 'hospital'},
-                ['Больница Jefferson'] = {'ДМЦ', 'hospital'},
-                ['Больница Джефферсон'] = {
-                    'ДМЦ', 'hospital'
-                },
-                ['Правительство LS'] = {'Право', 'gov'},
-                ['Правительство ЛС'] = {'Право', 'gov'},
-                ['Судья'] = {'Судья', 'judge'},
-                ['Центр лицензирования'] = {'ГЦЛ', 'lc'},
-                ['Пожарный департамент'] = {'ПД', 'fd'},
-                ['Страховая компания'] = {'СТК', 'ins'},
-                ['Russian Mafia'] = {'RM', 'mafia'},
-                ['Yakuza'] = {'YKZ', 'mafia'},
-                ['La Cosa Nostra'] = {'LCN', 'mafia'},
-                ['Warlock MC'] = {'WMC', 'mafia'},
-                ['Tierra Robada Bikers'] = {'TRB', 'mafia'},
-                ['Grove Street'] = {'Грув', 'ghetto'},
-                ['Los Santos Vagos'] = {'Вагос', 'ghetto'},
-                ['East Side Ballas'] = {'Баллас', 'ghetto'},
-                ['Varrios Los Aztecas'] = {'Ацтек', 'ghetto'},
-                ['The Rifa'] = {'Рифа', 'ghetto'},
-                ['Night Wolves'] = {'НВ', 'ghetto'},
                 -- Rodina
-                ['ФСБ'] = {'ФСБ', 'fbi'},
                 ['Армия'] = {'ВС', 'army'},
                 ['Тюрьма Строгого Режима'] = {
                     'ФСИН', 'prison'
-                },
-                ['Полиция округа'] = {'ГИБДД', 'police'},
-                ['Городская полиция'] = {'ГУВД', 'police'},
-                ['Больница округа'] = {'МУСС', 'hospital'},
-                ['Городская больница'] = {'СМП', 'hospital'},
-                ['Центр Лицензирования'] = {'МРЭО', 'lc'},
-                ['Правительство'] = {'Право', 'gov'},
-                ['Новостное агенство'] = {'НА', 'smi'}
+                }
             }
             local data = fraction_data[settings.player_info.fraction]
             local old_fraction_mode = settings.general.fraction_mode
@@ -7238,6 +7274,26 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         end
     end
 
+    if dialogid == 15253 and title:find('Склад боеприпасов') then
+        local lines = {}
+        for line in text:gmatch("[^\r\n]+") do
+            if line ~= "" then table.insert(lines, line) end
+        end
+
+        local target = "Взять ящик с патронами"
+        for i, line in ipairs(lines) do
+            if line:find(target, 1, true) then
+                sampSendDialogResponse(dialogid, 1, i - 1, "")
+                return false
+            end
+        end
+    end
+
+    if dialogid == 15254 then
+        sampSendDialogResponse(dialogid, 1, 1, 0)
+        return false
+    end
+
     if isMode('prison') then
         -- умный срок
     end
@@ -7398,6 +7454,39 @@ addEventHandler('onReceiveRpc', function(id, bs)
             number = plate_number or "",
             type = "ARZ"
         }
+    end
+end)
+
+addEventHandler('onWindowMessage', function(msg, key, lparam)
+    if msg == 256 and key == 27 then
+        if not sampIsChatInputActive() and not sampIsDialogActive() and
+            not isSampfuncsConsoleActive() then
+            if isAnyHelperWindowOpen() then
+                -- Закрываем окна хелпера
+                MODULE.Main.Window[0] = false
+                MODULE.Binder.Window[0] = false
+                MODULE.Note.Window[0] = false
+                MODULE.RPWeapon.Window[0] = false
+                MODULE.Members.Window[0] = false
+                MODULE.Departament.Window[0] = false
+                MODULE.Sobes.Window[0] = false
+                MODULE.Post.Window[0] = false
+                MODULE.PumMenu.Window[0] = false
+                MODULE.GiveRank.Window[0] = false
+                MODULE.FastMenu.Window[0] = false
+                MODULE.LeaderFastMenu.Window[0] = false
+                MODULE.Update.Window[0] = false
+                MODULE.CommandPause.Window[0] = false
+                MODULE.CommandStop.Window[0] = false
+                MODULE.FastMenuPlayers.Window[0] = false
+                MODULE.Initial.Window[0] = false
+                MODULE.ClearList.Window[0] = false
+
+                -- Пытаемся заблокировать клавишу
+                setVirtualKeyDown(27, false)
+                return false
+            end
+        end
     end
 end)
 --------------------------------------------- INIT GUI --------------------------------------------
@@ -8424,58 +8513,48 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                 imgui.ImVec2(589 * settings.general.custom_dpi,
                                              27 * settings.general.custom_dpi),
                                 true) then
-                if thisScript().version:find('VIP') then
-                    imgui.SetCursorPosY(7 * settings.general.custom_dpi)
-                    imgui.CenterText(fa.CROWN ..
-                                         u8(
-                                             " VIP пользователь " ..
-                                                 MODULE.Activate.user ..
-                                                 ", вам доступны все функции ") ..
-                                         fa.CROWN)
-                else
-                    imgui.Columns(2)
-                    imgui.Text(fa.HAND_HOLDING_DOLLAR ..
-                                   u8 " Вы можете финансово поддержать автора скрипта (MTG MODS) донатом " ..
-                                   fa.HAND_HOLDING_DOLLAR)
-                    imgui.SetColumnWidth(-1, 480 * settings.general.custom_dpi)
-                    imgui.NextColumn()
-                    if imgui.CenterColumnSmallButton(u8 'Реквизиты') then
-                        imgui.OpenPopup(fa.SACK_DOLLAR ..
-                                            u8 ' Поддержка разработчика ' ..
-                                            fa.SACK_DOLLAR)
-                    end
-                    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
-                                           imgui.Cond.Always,
-                                           imgui.ImVec2(0.5, 0.5))
-                    if imgui.BeginPopupModal(fa.SACK_DOLLAR ..
-                                                 u8 ' Поддержка разработчика ' ..
-                                                 fa.SACK_DOLLAR, _,
-                                             imgui.WindowFlags.NoCollapse +
-                                                 imgui.WindowFlags.NoResize +
-                                                 imgui.WindowFlags.NoScrollbar) then
-                        change_dpi()
-                        imgui.CenterText(u8 'Свяжитесь с MTG MODS:')
-                        if imgui.Button(u8('Telegram'),
-                                        imgui.ImVec2(
-                                            100 * settings.general.custom_dpi,
-                                            25 * settings.general.custom_dpi)) then
-                            openLink('https://t.me/MTGMODS')
-                            imgui.CloseCurrentPopup()
-                        end
-                        imgui.SameLine()
-                        if imgui.Button(u8('Discord'),
-                                        imgui.ImVec2(
-                                            100 * settings.general.custom_dpi,
-                                            25 * settings.general.custom_dpi)) then
-                            openLink(
-                                'https://discordapp.com/users/514135796685602827')
-                            imgui.CloseCurrentPopup()
-                        end
-                        imgui.End()
-                    end
-                    imgui.SetColumnWidth(-1, 100 * settings.general.custom_dpi)
-                    imgui.Columns(1)
+                -- Убраны все VIP-упоминания, оставлена обычная информация
+                imgui.Columns(2)
+                imgui.Text(fa.HAND_HOLDING_DOLLAR ..
+                               u8 " Вы можете финансово поддержать автора скрипта (MTG MODS) донатом " ..
+                               fa.HAND_HOLDING_DOLLAR)
+                imgui.SetColumnWidth(-1, 480 * settings.general.custom_dpi)
+                imgui.NextColumn()
+                if imgui.CenterColumnSmallButton(u8 'Реквизиты') then
+                    imgui.OpenPopup(fa.SACK_DOLLAR ..
+                                        u8 ' Поддержка разработчика ' ..
+                                        fa.SACK_DOLLAR)
                 end
+                imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                if imgui.BeginPopupModal(fa.SACK_DOLLAR ..
+                                             u8 ' Поддержка разработчика ' ..
+                                             fa.SACK_DOLLAR, _,
+                                         imgui.WindowFlags.NoCollapse +
+                                             imgui.WindowFlags.NoResize +
+                                             imgui.WindowFlags.NoScrollbar) then
+                    change_dpi()
+                    imgui.CenterText(u8 'Свяжитесь с MTG MODS:')
+                    if imgui.Button(u8('Telegram'),
+                                    imgui.ImVec2(
+                                        100 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
+                        openLink('https://t.me/MTGMODS')
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.SameLine()
+                    if imgui.Button(u8('Discord'),
+                                    imgui.ImVec2(
+                                        100 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
+                        openLink(
+                            'https://discordapp.com/users/514135796685602827')
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.End()
+                end
+                imgui.SetColumnWidth(-1, 100 * settings.general.custom_dpi)
+                imgui.Columns(1)
                 imgui.EndChild()
             end
             imgui.EndTabItem()
@@ -8615,7 +8694,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                             imgui.CenterColumnText(
                                 u8 "Заспавнить транспорт организации")
                             imgui.NextColumn()
-                            imgui.CenterColumnText(u8 "Недоступно")
+                            imgui.CenterColumnText(u8 "")
                             imgui.Columns(1)
                             imgui.Separator()
                             imgui.Columns(3)
@@ -8624,7 +8703,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                             imgui.CenterColumnText(
                                 u8 "Уволить неактивных членов организации")
                             imgui.NextColumn()
-                            imgui.CenterColumnText(u8 "Недоступно")
+                            imgui.CenterColumnText(u8 "")
                             imgui.Columns(1)
                             imgui.Separator()
                             imgui.Separator()
@@ -8774,17 +8853,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                         u8 ' Создать новую команду##new_cmd' ..
                                         (isManage and 1 or 2),
                                     imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
-                        local my_cmds = isManage and
-                                            #modules.commands.data
-                                                .commands_manage.my or
-                                            #modules.commands.data.commands.my
-                        local max_cmds =
-                            #get_fraction_cmds(settings.general.fraction_mode,
-                                               isManage) + 10
-                        if my_cmds > max_cmds then
-                            send_no_vip_msg()
-                            return
-                        end
+                        -- Убрана проверка на VIP, всегда можно создавать команды
                         local new_cmd = {
                             cmd = '',
                             description = '',
@@ -8979,15 +9048,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                     if imgui.Button(fa.CIRCLE_PLUS ..
                                         u8 ' Создать новую команду##new_cmd_senior',
                                     imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
-                        local my_cmds = #modules.commands.data
-                                            .commands_senior_staff.my
-                        local max_cmds =
-                            #get_fraction_cmds(settings.general.fraction_mode,
-                                               false) + 10
-                        if my_cmds > max_cmds then
-                            send_no_vip_msg()
-                            return
-                        end
+                        -- Убрана проверка на VIP
                         local new_cmd = {
                             cmd = '',
                             description = '',
@@ -9596,9 +9657,8 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                         (MODULE.PieMenu.editor.selector[0] ~= 2)
                                     local number =
                                         #MODULE.PieMenu.editor.current
-                                    if number <
-                                        (thisScript().version:find('VIP') and 10 or
-                                            5) then
+                                    -- Убираем VIP-ограничение, ставим лимит 20
+                                    if number < 20 then
                                         number = number + 1
                                         if bool then
                                             table.insert(
@@ -9617,15 +9677,9 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                         end
                                         save_module('piemenu')
                                     else
-                                        if thisScript().version:find('VIP') then
-                                            sampAddChatMessage(script_tag ..
-                                                                   ' {ffffff}Системный лимит 10 элементов в одном списка, используйте другие подменю!',
-                                                               message_color)
-                                        else
-                                            sampAddChatMessage(script_tag ..
-                                                                   ' {ffffff}Ограничение 5 (в VIP 10) элементов в одном списке, используйте другие подменю или VIP!',
-                                                               message_color)
-                                        end
+                                        sampAddChatMessage(script_tag ..
+                                                               ' {ffffff}Лимит 20 элементов в одном списке, используйте другие подменю!',
+                                                           message_color)
                                     end
                                     imgui.CloseCurrentPopup()
                                 end
@@ -10013,10 +10067,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
             if imgui.Button(fa.CIRCLE_PLUS ..
                                 u8 ' Создать новую заметку',
                             imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
-                if #modules.notes.data >= 10 then
-                    send_no_vip_msg()
-                    return
-                end
+                -- Убрана проверка на VIP
                 table.insert(modules.notes.data, {
                     note_name = "Новая заметка " ..
                         #modules.notes.data + 1,
@@ -10090,16 +10141,10 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                                     " Скачать обновление"),
                                             imgui.ImVec2(
                                                 imgui.GetMiddleButtonX(1), 0)) then
-                                if thisScript().version:find('VIP') then
-                                    sampAddChatMessage(script_tag ..
-                                                           ' {ffffff}Используйте команду /ph в нашем Telegram/Discord VIP боте!',
-                                                       message_color)
-                                else
-                                    download_file = 'helper'
-                                    downloadFileFromUrlToPath(
-                                        latest.download_url,
-                                        worked_dir .. "/Prison Helper.lua")
-                                end
+                                download_file = 'helper'
+                                downloadFileFromUrlToPath(latest.download_url,
+                                                          worked_dir ..
+                                                              "/Prison Helper.lua")
                             end
                         end
                     else
@@ -10163,18 +10208,10 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                 imgui.Separator()
                 imgui.Text(
                     u8 "-----------------------------------------------------------------------------------------------------------------------------------")
-                if thisScript().version:find('VIP') then
-                    imgui.CenterText(fa.CROWN ..
-                                         u8(
-                                             " VIP пользователь " ..
-                                                 MODULE.Activate.user ..
-                                                 ", вам доступны все функции ") ..
-                                         fa.CROWN)
-                else
-                    imgui.CenterText(fa.GIFT ..
-                                         u8 " Если вы лидер/ютубер, можете бесплатно получить VIP версию, свяжитесь с MTG MODS " ..
-                                         fa.GIFT)
-                end
+                -- Убрано упоминание VIP
+                imgui.CenterText(fa.GIFT ..
+                                     u8 " Если вы лидер/ютубер, можете бесплатно получить VIP версию, свяжитесь с MTG MODS " ..
+                                     fa.GIFT)
                 imgui.EndChild()
             end
             if imgui.BeginChild('##2',
@@ -10851,6 +10888,35 @@ imgui.OnFrame(function() return MODULE.Note.Window[0] end, function(player)
     imgui.End()
 end)
 ------------------------------------------ FRACTION GUI -------------------------------------------
+function load_clear_data()
+    local path = modules.clear.path
+    if not doesFileExist(path) then
+        print(
+            'Файл Clear.json не найден, создаю пустой.')
+        -- можно создать пустой файл
+        local file = io.open(path, 'w')
+        if file then
+            file:write(encode_table({}))
+            file:close()
+        end
+        return {}
+    end
+    local file = io.open(path, 'r')
+    if not file then
+        print('Не удалось открыть Clear.json')
+        return {}
+    end
+    local content = file:read('*a')
+    file:close()
+    local ok, data = pcall(decodeJson, content)
+    if ok then
+        return data
+    else
+        print('Ошибка парсинга Clear.json')
+        return {}
+    end
+end
+
 function load_update_news()
     local path = modules.update_info.path -- путь должен быть определён в modules
     if not doesFileExist(path) then
@@ -10935,14 +11001,14 @@ function sendClickKeySync(key)
 end
 
 function render_fractions_functions()
-    local function render_assist_item(name, description, tbl, key, isVip, func)
+    -- Убран параметр isVip
+    local function render_assist_item(name, description, tbl, key, func)
         imgui.Separator()
         imgui.Columns(3)
         if tbl and tbl[key] then
-            imgui.CenterColumnText((isVip and fa.CROWN .. ' ' or '') .. u8(name))
+            imgui.CenterColumnText(u8(name))
         else
-            imgui.CenterColumnTextDisabled(
-                (isVip and fa.CROWN .. ' ' or '') .. u8(name))
+            imgui.CenterColumnTextDisabled(u8(name))
         end
         imgui.NextColumn()
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
@@ -10975,12 +11041,9 @@ function render_fractions_functions()
                                                  'Отключить' or
                                                  'Включить') .. '##' ..
                                                  name .. key)) then
-            if ((isVip) and (not thisScript().version:find('VIP'))) then
-                send_no_vip_msg()
-            else
-                tbl[key] = not tbl[key]
-                save_settings()
-            end
+            -- Убрана проверка на VIP, всегда разрешаем
+            tbl[key] = not tbl[key]
+            save_settings()
         end
         if func and tbl and tbl[key] then
             imgui.SameLine()
@@ -11005,7 +11068,7 @@ function render_fractions_functions()
                            settings.player_info, "rp_chat")
         render_assist_item("RP отыгровка оружия",
                            "При использовании или скролле оружия, в чате будут RP отыгровки.\nНастроить можно через команду /rpguns или кнопкой шестеренки справа.",
-                           settings.general, "rp_guns", false,
+                           settings.general, "rp_guns",
                            function() MODULE.RPWeapon.Window[0] = true end)
         render_assist_item("RP проверка документов",
                            "Автоматически принимает документы из /offer\nТак-же через RP отыгровку проверяет их, затем возвращает.",
@@ -11020,18 +11083,19 @@ function render_fractions_functions()
                            "Упоминание в чате, также замена ID на NickName игрока",
                            settings.general, "ping")
         if not isMode('none') then
+            -- Убраны isVip
             render_assist_item("Обновление списка /mb",
                                "Автоматически обновляет список сотрудников в /mb каждые 3 секунды.",
-                               settings.general, "auto_update_members", true)
+                               settings.general, "auto_update_members")
             render_assist_item("Доклады на посту (/post)",
                                "Автоматически отправляет доклад в рацию каждые 5 минут на посту.\n(вы должны начать /post чтобы функция работала)",
-                               settings.general, "auto_doklad_post", true)
+                               settings.general, "auto_doklad_post")
         end
         if settings.player_info.fraction_rank_number >= 9 then
             render_assist_item(
                 "Инвайт игроков по фразе [9/10]",
                 'Автоматически инвайтит игроков, которые просят инвайт в чате.\nДля настройки выдачи ранга нажмите на шестерёнку справа от кнопки\n\nМОЖЕТ БЫТЬ ЗАПРЕЩЕНО НА НЕКОТОРЫХ СЕРВЕРАХ! УТОЧНЯЙТЕ В /REPORT',
-                settings.general.auto_invite, "enable", true)
+                settings.general.auto_invite, "enable")
             render_assist_item(
                 "Увал сотрудников по ПСЖ [9/10]",
                 "Автоматическое увольнение сотрудников, которые просят увал ПСЖ в /r /rb /f /fb\nПример ситуации как это работает:\n1) Игрок пишет в /r Увольте меня по псж\n2) Cкрипт отвечает: /rb Nick_Name, отправьте /rb +++ чтобы уволиться ПСЖ!\n3) Игрок отправляет /rb +++ и скрипт его увольняет по ПСЖ\n\nP.S. Если игрок флудит просьбами об увале, скрипт САМ его уволит, без +++\nP.S.S. Данная функция работает только если вы одеты в рабочую форму.",
@@ -11063,7 +11127,7 @@ function render_fractions_functions()
                     render_assist_item(
                         "Доклад в патруле (/patrool)",
                         "Автоматически отправляет доклад в рацию каждые 5 минут в патруле.\n(вы должны начать /patrool чтобы функция работала)",
-                        settings.md, "auto_doklad_patrool", true)
+                        settings.md, "auto_doklad_patrool")
                     imgui.Separator()
                     imgui.EndChild()
                 end
@@ -12945,15 +13009,10 @@ imgui.OnFrame(function() return MODULE.Update.Window[0] end, function(player)
                         u8(MODULE.Update.version),
                     imgui.ImVec2(250 * settings.general.custom_dpi,
                                  25 * settings.general.custom_dpi)) then
-        if thisScript().version:find('VIP') then
-            sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Используйте команду /ph в нашем Telegram/Discord VIP боте!',
-                               message_color)
-        else
-            download_file = 'helper'
-            downloadFileFromUrlToPath(MODULE.Update.url,
-                                      worked_dir .. "/Prison Helper.lua")
-        end
+        -- Убрана проверка на VIP
+        download_file = 'helper'
+        downloadFileFromUrlToPath(MODULE.Update.url,
+                                  worked_dir .. "/Prison Helper.lua")
         MODULE.Update.Window[0] = false
     end
     imgui.End()
@@ -13195,7 +13254,7 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                 -- 4. Задержка + кнопка редактирования
                 local waiting_val = tonumber(value.waiting) or 1.0
                 local waiting_text = string.format("%.1f", waiting_val) .. " с"
-                imgui.CenterColumnText(u8(waiting_text)) -- u8 преобразует из CP1251 в UTF-8? Нет, u8() ожидает UTF-8 и ничего не делает, это просто метка.
+                imgui.CenterColumnText(u8(waiting_text))
                 imgui.SameLine()
                 if imgui.SmallButton(fa.PEN_TO_SQUARE .. '##weapon_delay' ..
                                          index) then
@@ -13205,7 +13264,6 @@ imgui.OnFrame(function() return MODULE.RPWeapon.Window[0] end, function(player)
                                         fa.CLOCK .. '##weapon_delay' .. index)
                 end
 
-                -- Popup для задержки
                 -- Popup для задержки
                 imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                                        imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
@@ -13320,6 +13378,106 @@ imgui.OnFrame(function() return MODULE.CommandPause.Window[0] end,
     end
     imgui.End()
 end)
+
+imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi,
+                                         414 * settings.general.custom_dpi),  -- увеличено до 450
+                            imgui.Cond.FirstUseEver)
+    imgui.Begin(
+        fa.LIST .. u8 " Список фильтруемых строк " ..
+            fa.LIST, MODULE.ClearList.Window,
+        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar) -- добавлен NoScrollbar
+    change_dpi()
+
+    local data = modules.clear.data
+    local total = #data
+    local perPage = MODULE.ClearList.itemsPerPage
+    local page = MODULE.ClearList.page[0]
+    local maxPage = math.max(0, math.ceil(total / perPage) - 1)
+
+    if page > maxPage then page = maxPage end
+    if page < 0 then page = 0 end
+    MODULE.ClearList.page[0] = page
+
+    local startIdx = page * perPage + 1
+    local endIdx = math.min(startIdx + perPage - 1, total)
+
+    if total == 0 then
+        imgui.CenterText(u8 "Список пуст")
+    else
+        local pageInfo = string.format("Стр. %d/%d (%d-%d из %d)",
+                                       page + 1, maxPage + 1, startIdx, endIdx,
+                                       total)
+        imgui.Text(u8(pageInfo))
+        imgui.Separator()
+
+        if imgui.BeginChild("##clear_list",
+                            imgui.ImVec2(840 * settings.general.custom_dpi,
+                                         320 * settings.general.custom_dpi),  -- увеличено до 320
+                            true) then
+            for i = startIdx, endIdx do
+                local line = data[i]
+                imgui.Text(u8(i .. ". " .. line))
+            end
+            imgui.EndChild()
+        end
+
+        imgui.Separator()
+        -- Отступ перед кнопками
+        imgui.SetCursorPosY(imgui.GetCursorPosY() + 0 * settings.general.custom_dpi)
+
+        -- Кнопки навигации
+        local buttonWidth = 200 * settings.general.custom_dpi
+        local spacing = imgui.GetStyle().ItemSpacing.x
+        local totalWidth = buttonWidth * 2 + spacing
+        local startX = (imgui.GetWindowWidth() - totalWidth) / 2
+        imgui.SetCursorPosX(startX)
+
+        if page > 0 then
+            if imgui.Button(fa.ARROW_LEFT .. u8(" Предыдущая"),
+                            imgui.ImVec2(buttonWidth, 0)) then
+                MODULE.ClearList.page[0] = page - 1
+            end
+        else
+            imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, 0.5)
+            imgui.Button(fa.ARROW_LEFT .. u8(" Предыдущая"),
+                         imgui.ImVec2(buttonWidth, 0))
+            imgui.PopStyleVar()
+        end
+
+        imgui.SameLine()
+
+        if page < maxPage then
+            if imgui.Button(fa.ARROW_RIGHT .. u8(" Следующая"),
+                            imgui.ImVec2(buttonWidth, 0)) then
+                MODULE.ClearList.page[0] = page + 1
+            end
+        else
+            imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, 0.5)
+            imgui.Button(fa.ARROW_RIGHT .. u8(" Следующая"),
+                         imgui.ImVec2(buttonWidth, 0))
+            imgui.PopStyleVar()
+        end
+    end
+
+    imgui.End()
+end)
+
+------------------------------- OTHER FUNCTIONS --------------------------
+-- Функция для проверки, открыто ли хотя бы одно окно хелпера
+function isAnyHelperWindowOpen()
+    return MODULE.Main.Window[0] or MODULE.Binder.Window[0] or
+               MODULE.Note.Window[0] or MODULE.RPWeapon.Window[0] or
+               MODULE.Members.Window[0] or MODULE.Departament.Window[0] or
+               MODULE.Sobes.Window[0] or MODULE.Post.Window[0] or
+               MODULE.PumMenu.Window[0] or MODULE.GiveRank.Window[0] or
+               MODULE.FastMenu.Window[0] or MODULE.LeaderFastMenu.Window[0] or
+               MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
+               MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
+               MODULE.Initial.Window[0] or MODULE.ClearList.Window[0]
+end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
     local rBool = false
