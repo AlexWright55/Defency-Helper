@@ -84,7 +84,8 @@ local default_settings = {
         auto_uninvite = false,
         ping = true,
         rp_guns = true,
-        auto_accept_docs = true
+        auto_accept_docs = true,
+        clear_chat = true
     },
     player_info = {
         nick = '',
@@ -6716,22 +6717,24 @@ function sampev.onServerMessage(color, text)
         return {color, text}
     end
 
-    -- Проверка на "чистые" строки
-    if modules.clear and modules.clear.data and type(modules.clear.data) ==
-        'table' then
-        -- Приводим текст к нижнему регистру для сравнения
-        local lowerText = text:lower()
-        for _, pattern in ipairs(modules.clear.data) do
-            if pattern and type(pattern) == 'string' then
-                -- Приводим шаблон к нижнему регистру и ищем вхождение
-                if lowerText:find(pattern:lower(), 1, true) then
-                    -- Сообщение содержит запрещённую подстроку – скрываем
-                    if MODULE.DEBUG then
-                        sampAddChatMessage(
-                            '[Clear] Заблокировано: ' .. pattern,
-                            message_color)
+    if settings.general.clear_chat then
+        -- Проверка на "чистые" строки
+        if modules.clear and modules.clear.data and type(modules.clear.data) ==
+            'table' then
+            -- Приводим текст к нижнему регистру для сравнения
+            local lowerText = text:lower()
+            for _, pattern in ipairs(modules.clear.data) do
+                if pattern and type(pattern) == 'string' then
+                    -- Приводим шаблон к нижнему регистру и ищем вхождение
+                    if lowerText:find(pattern:lower(), 1, true) then
+                        -- Сообщение содержит запрещённую подстроку – скрываем
+                        if MODULE.DEBUG then
+                            sampAddChatMessage(
+                                '[Clear] Заблокировано: ' ..
+                                    pattern, message_color)
+                        end
+                        return false
                     end
-                    return false
                 end
             end
         end
@@ -10613,20 +10616,26 @@ imgui.OnFrame(function() return MODULE.Binder.Window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
     if imgui.BeginPopupModal(fa.CLOCK ..
-                             u8 ' Задержка (в секундах) ' ..
-                             fa.CLOCK, _, imgui.WindowFlags.NoResize) then
-    -- Поле для ручного ввода
-    imgui.PushItemWidth(100 * settings.general.custom_dpi)
-    if imgui.InputFloat("##input_waiting", MODULE.Binder.waiting_slider, 0.1, 1.0, "%.2f") then
-        -- Ограничиваем значение диапазоном [0.3, 10.0]
-        if MODULE.Binder.waiting_slider[0] < 0.3 then MODULE.Binder.waiting_slider[0] = 0.3 end
-        if MODULE.Binder.waiting_slider[0] > 10.0 then MODULE.Binder.waiting_slider[0] = 10.0 end
-    end
-    imgui.SameLine()
-    imgui.PushItemWidth(150 * settings.general.custom_dpi)
-    imgui.SliderFloat(u8 '##waiting', MODULE.Binder.waiting_slider, 0.3, 10, "%.2f")
-    imgui.PopItemWidth()  -- для слайдера
-    imgui.PopItemWidth()  -- для поля ввода
+                                 u8 ' Задержка (в секундах) ' ..
+                                 fa.CLOCK, _, imgui.WindowFlags.NoResize) then
+        -- Поле для ручного ввода
+        imgui.PushItemWidth(100 * settings.general.custom_dpi)
+        if imgui.InputFloat("##input_waiting", MODULE.Binder.waiting_slider,
+                            0.1, 1.0, "%.2f") then
+            -- Ограничиваем значение диапазоном [0.3, 10.0]
+            if MODULE.Binder.waiting_slider[0] < 0.3 then
+                MODULE.Binder.waiting_slider[0] = 0.3
+            end
+            if MODULE.Binder.waiting_slider[0] > 10.0 then
+                MODULE.Binder.waiting_slider[0] = 10.0
+            end
+        end
+        imgui.SameLine()
+        imgui.PushItemWidth(150 * settings.general.custom_dpi)
+        imgui.SliderFloat(u8 '##waiting', MODULE.Binder.waiting_slider, 0.3, 10,
+                          "%.2f")
+        imgui.PopItemWidth() -- для слайдера
+        imgui.PopItemWidth() -- для поля ввода
         imgui.Separator()
         if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена##binder_wait_menu',
                         imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
@@ -10797,7 +10806,9 @@ imgui.OnFrame(function() return MODULE.Binder.Window[0] end, function(player)
                                        ffi.string(MODULE.Binder.input_text))
                                        :gsub('\n', '&')
                     command.bind = MODULE.Binder.data.change_bind
-                    command.waiting = tonumber(string.format("%.2f", MODULE.Binder.waiting_slider[0]))
+                    command.waiting = tonumber(
+                                          string.format("%.2f", MODULE.Binder
+                                                            .waiting_slider[0]))
                     command.enable = true
                     save_module('commands')
                     if command.arg == '' then
@@ -11096,6 +11107,7 @@ function render_fractions_functions()
         render_assist_item("Упоминание",
                            "Упоминание в чате, также замена ID на NickName игрока",
                            settings.general, "ping")
+        render_assist_item("Удаление мусора","Удаление лишнего из чата",settings.general, "clear_chat")
         if not isMode('none') then
             -- Убраны isVip
             render_assist_item("Обновление списка /mb",
@@ -13397,12 +13409,13 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
     imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi,
-                                         414 * settings.general.custom_dpi),  -- увеличено до 450
+                                         414 * settings.general.custom_dpi), -- увеличено до 450
                             imgui.Cond.FirstUseEver)
     imgui.Begin(
         fa.LIST .. u8 " Список фильтруемых строк " ..
             fa.LIST, MODULE.ClearList.Window,
-        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar) -- добавлен NoScrollbar
+        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+            imgui.WindowFlags.NoScrollbar) -- добавлен NoScrollbar
     change_dpi()
 
     local data = modules.clear.data
@@ -13429,7 +13442,7 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
 
         if imgui.BeginChild("##clear_list",
                             imgui.ImVec2(840 * settings.general.custom_dpi,
-                                         320 * settings.general.custom_dpi),  -- увеличено до 320
+                                         320 * settings.general.custom_dpi), -- увеличено до 320
                             true) then
             for i = startIdx, endIdx do
                 local line = data[i]
@@ -13440,7 +13453,8 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
 
         imgui.Separator()
         -- Отступ перед кнопками
-        imgui.SetCursorPosY(imgui.GetCursorPosY() + 0 * settings.general.custom_dpi)
+        imgui.SetCursorPosY(imgui.GetCursorPosY() + 0 *
+                                settings.general.custom_dpi)
 
         -- Кнопки навигации
         local buttonWidth = 200 * settings.general.custom_dpi
