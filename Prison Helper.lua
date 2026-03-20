@@ -4074,7 +4074,6 @@ end)
             end
         end)
     end
-    if not (isMode('ghetto') or isMode('mafia') or isMode('none')) then
         sampRegisterChatCommand("post", function(arg)
             if not MODULE.Binder.state.isActive then
                 MODULE.Post.Window[0] = not MODULE.Post.Window[0]
@@ -4085,7 +4084,6 @@ end)
                 playNotifySound()
             end
         end)
-    end
     if isMode('prison') then
         sampRegisterChatCommand("pum", function(arg)
             if not MODULE.Binder.state.isActive then
@@ -13707,7 +13705,7 @@ end
 function print_scr_time()
 	lua_thread.create(function()
 		sampSendChat('/time')
-		wait(1500)
+		wait(100)
 		setVirtualKeyDown(119, true)
 		wait(25)
 		setVirtualKeyDown(119, false)
