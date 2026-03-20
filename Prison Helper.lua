@@ -66,6 +66,7 @@ local default_settings = {
     general = {
         version = thisScript().version,
         author = 'Flip Anderson',
+        uid = 0,
         custom_dpi = 1.0,
         autofind_dpi = false,
         helper_theme = 0,
@@ -104,7 +105,8 @@ local default_settings = {
         auto_doklad_damage = false,
         auto_doklad_patrool = true,
         auto_door = false,
-        auto_doklad_post = false
+        auto_doklad_post = false,
+        auto_mask = false
     },
     windows_pos = {
         pie = {x = sizeX * 0.7, y = sizeY * 0.7},
@@ -4019,7 +4021,7 @@ end)
 end)
 
     sampRegisterChatCommand("phelp", function()
-    MODULE.Help.Window[0] = true
+    MODULE.Help.Window[0] = not MODULE.Help.Window[0]
 end)
 
     if not isMode('none') then
@@ -6690,6 +6692,12 @@ function sampev.onServerMessage(color, text)
         print('[ServerMessage] Color ' .. color .. " | Text " .. text)
     end
 
+        -- Удаление пустых строк из чата
+    local stripped = text:gsub("{[%x%a]+}", ""):gsub("%s+", "")
+    if stripped == "" then
+        return false
+    end
+
     if settings.general.ping and text:match('@' .. MODULE.Binder.tags.my_nick()) then
         sampAddChatMessage(script_tag ..
                                ' {ffffff}Кто-то упомянул вас в чате!',
@@ -6794,6 +6802,27 @@ function sampev.onServerMessage(color, text)
                          text:match('Осталось: (.+)%)'))
     end
 
+    if (settings.md.auto_mask) then
+        if text:find(
+            'Время действия маски истекло, вам пришлось ее выбросить.') then
+            sampAddChatMessage(script_tag ..
+                                   ' {ffffff}Время действия маски истекло, автоматически надеваю новую',
+                               message_color)
+            sampSendChat("/mask")
+            return false
+        elseif (text:find(
+            'Время действия маски (%d+) минут, после исхода времени ее придётся выбросить.')) then
+            local min = text:match(
+                            'Время действия маски (%d+) минут, после исхода времени ее придётся выбросить.')
+            sampAddChatMessage(script_tag ..
+                                   ' {ffffff}Время действия маски ' ..
+                                   min ..
+                                   ' минут, после исхода времени автоматически надеву новую!',
+                               message_color)
+            return false
+        end
+    end
+
     if (text:find(
         "^1%.{......} 111 %- {......}Проверить баланс телефона")) or
         (text:find(
@@ -6849,27 +6878,24 @@ function sampev.onServerMessage(color, text)
     end
 
     if settings.general.clear_chat then
-        -- Проверка на "чистые" строки
-        if modules.clear and modules.clear.data and type(modules.clear.data) ==
-            'table' then
-            -- Приводим текст к нижнему регистру для сравнения
-            local lowerText = text:lower()
-            for _, pattern in ipairs(modules.clear.data) do
-                if pattern and type(pattern) == 'string' then
-                    -- Приводим шаблон к нижнему регистру и ищем вхождение
-                    if lowerText:find(pattern:lower(), 1, true) then
-                        -- Сообщение содержит запрещённую подстроку – скрываем
-                        if MODULE.DEBUG then
-                            sampAddChatMessage(
-                                '[Clear] Заблокировано: ' ..
-                                    pattern, message_color)
-                        end
-                        return false
+    -- Проверка на "чистые" строки
+    if modules.clear and modules.clear.data and type(modules.clear.data) == 'table' then
+        -- Удаляем цветовые коды из текста
+        local cleanText = stripColorCodes(text):lower()
+        for _, pattern in ipairs(modules.clear.data) do
+            if pattern and type(pattern) == 'string' then
+                -- Приводим шаблон к нижнему регистру и ищем вхождение
+                if cleanText:find(pattern:lower(), 1, true) then
+                    -- Сообщение содержит запрещённую подстроку – скрываем
+                    if MODULE.DEBUG then
+                        sampAddChatMessage('[Clear] Заблокировано: ' .. pattern, message_color)
                     end
+                    return false
                 end
             end
         end
     end
+end
 end
 function sampev.onSendChat(text)
     if MODULE.DEBUG then
@@ -11240,6 +11266,7 @@ function render_fractions_functions()
                            "Упоминание в чате, также замена ID на NickName игрока",
                            settings.general, "ping")
         render_assist_item("Удаление мусора","Удаление лишнего из чата",settings.general, "clear_chat")
+        render_assist_item("Режим авто-маски","Автоматически надевает маску спустя 20 минут",settings.md, "auto_mask")
         if not isMode('none') then
             -- Убраны isVip
             render_assist_item("Обновление списка /mb",
@@ -13702,6 +13729,7 @@ function isAnyHelperWindowOpen()
                MODULE.Initial.Window[0] or MODULE.ClearList.Window[0] or MODULE.Help.Window[0]
 end
 
+-- Функция /time+F8
 function print_scr_time()
 	lua_thread.create(function()
 		sampSendChat('/time')
@@ -13710,6 +13738,10 @@ function print_scr_time()
 		wait(25)
 		setVirtualKeyDown(119, false)
 	end)
+end
+
+function stripColorCodes(str)
+    return str:gsub("{[^}]+}", "")
 end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
