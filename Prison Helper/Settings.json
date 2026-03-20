@@ -22,9 +22,9 @@
     }
   },
   "player_info":{
-    "fraction_rank_number":5,
+    "fraction_rank_number":6,
     "rp_chat":true,
-    "fraction_rank":"Ст.Надзиратель",
+    "fraction_rank":"Начальник блока",
     "fraction_tag":"ТСР",
     "fraction":"Тюрьма строгого режима LV",
     "name_surname":"Флип Андерсон",
@@ -41,7 +41,6 @@
     "moonmonet_theme_color":12434877,
     "bind_action":"[13]",
     "bind_command_stop":"[123]",
-    "auto_doklad_post":false,
     "helper_theme":0,
     "author":"Flip Anderson",
     "piemenu":false,
@@ -49,19 +48,19 @@
     "bind_mainmenu":"[113]",
     "ping":true,
     "mobile_fastmenu_button":true,
-    "auto_update_members":true,
+    "message_color":40703,
     "mobile_stop_button":true,
-    "auto_accept_docs":true,
-    "autofind_dpi":true,
-    "auto_uninvite":false,
-    "bind_fastmenu":"[69]",
     "fraction_mode":"prison",
-    "message_color":40703
+    "bind_fastmenu":"[69]",
+    "auto_uninvite":false,
+    "autofind_dpi":true,
+    "auto_accept_docs":true,
+    "clear_chat":true
   },
   "md":{
-    "auto_doklad_damage":true,
-    "auto_doklad_patrool":false,
-    "auto_doklad_post":true,
-    "auto_door":true
+    "auto_door":true,
+    "auto_doklad_patrool":true,
+    "auto_doklad_damage":false,
+    "auto_doklad_post":true
   }
 }

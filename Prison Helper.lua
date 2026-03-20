@@ -191,6 +191,16 @@ function load_settings()
 end
 function isMode(mode_type) return settings.general.fraction_mode == mode_type end
 load_settings()
+
+local function safeDecodeJson(str)
+    if not str or str == "" then return {} end
+    local ok, res = pcall(decodeJson, str)
+    if ok and type(res) == "table" then
+        return res
+    else
+        return {}
+    end
+end
 ------------------------------------------- AUTO FIND DPI ----------------------------------------
 if not settings.general.autofind_dpi then
     print('Применение авто-размера интерфейса...')
@@ -220,7 +230,7 @@ local modules = {
             dep_tag1 = '',
             dep_tag2 = '[Всем]',
             dep_tags = {
-                "[Всем]", "[Похитители]", "[Терористы]",
+                "[Всем]", "[Похитители]", "[Террористы]",
                 "[Диспетчер]", 'skip', "[МЮ]", "[Мин.Юст.]",
                 "[ЛСПД]", "[СФПД]", "[ЛВПД]", "[РКШД]",
                 "[СВАТ]", "[ФБР]", 'skip', "[МО]",
@@ -1407,6 +1417,10 @@ local MODULE = {
         Window = imgui.new.bool(),
         page = imgui.new.int(0),
         itemsPerPage = 20
+    },
+    Help = {
+        Window = imgui.new.bool(),
+        filter = imgui.new.char[256]('')  -- поле для ввода поиска
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -2935,7 +2949,7 @@ if hotkey_no_errors and not isMode('') then
     end
     function loadHotkeys()
         MainMenuHotKey = hotkey.RegisterHotKey('Open MainMenu', false,
-                                               decodeJson(
+                                               safeDecodeJson(
                                                    settings.general
                                                        .bind_mainmenu),
                                                function()
@@ -2944,14 +2958,14 @@ if hotkey_no_errors and not isMode('') then
             end
         end)
         CommandStopHotKey = hotkey.RegisterHotKey('Stop Command', false,
-                                                  decodeJson(
+                                                  safeDecodeJson(
                                                       settings.general
                                                           .bind_command_stop),
                                                   function()
             sampProcessChatInput('/stop')
         end)
         FastMenuHotKey = hotkey.RegisterHotKey('Open FastMenu', false,
-                                               decodeJson(
+                                               safeDecodeJson(
                                                    settings.general
                                                        .bind_fastmenu),
                                                function()
@@ -2964,7 +2978,7 @@ if hotkey_no_errors and not isMode('') then
             end
         end)
         LeaderFastMenuHotKey = hotkey.RegisterHotKey('Open LeaderFastMenu',
-                                                     false, decodeJson(
+                                                     false, safeDecodeJson(
                                                          settings.general
                                                              .bind_leader_fastmenu),
                                                      function()
@@ -2978,7 +2992,7 @@ if hotkey_no_errors and not isMode('') then
                 end
             end
         end)
-        ActionHotKey = hotkey.RegisterHotKey('Action Key', false, decodeJson(
+        ActionHotKey = hotkey.RegisterHotKey('Action Key', false, safeDecodeJson(
                                                  settings.general.bind_action),
                                              function()
             if MODULE.Binder.state.isPause and MODULE.CommandPause.Window[0] then
@@ -3001,8 +3015,9 @@ if hotkey_no_errors and not isMode('') then
         if hotkeys[hotkeyName] then hotkey.RemoveHotKey(hotkeyName) end
         if command.arg == "" and command.bind ~= nil and command.bind ~= '{}' and
             command.bind ~= '[]' then
+                local bindTable = safeDecodeJson(command.bind)
             hotkeys[hotkeyName] = hotkey.RegisterHotKey(hotkeyName, false,
-                                                        decodeJson(command.bind),
+                                                        bindTable,
                                                         function()
                 if (not (sampIsChatInputActive() or sampIsDialogActive() or
                     isSampfuncsConsoleActive())) then
@@ -3955,6 +3970,58 @@ function initialize_commands()
                                (MODULE.DEBUG and 'включено!' or
                                    'выключено!'), message_color)
     end)
+
+    sampRegisterChatCommand("reloadmodule", function(arg)
+    if not arg or arg == "" then
+        sampAddChatMessage(script_tag .. " {ffffff}Используйте: /reloadmodule [название модуля]", message_color)
+        return
+    end
+    local module_name = arg:lower()
+    if not modules[module_name] then
+        sampAddChatMessage(script_tag .. " {ffffff}Модуль '" .. arg .. "' не найден!", message_color)
+        return
+    end
+    -- Перезагружаем модуль
+    load_module(module_name)
+    -- Дополнительные действия для некоторых модулей
+    if module_name == 'rpgun' then
+        initialize_guns()
+        sampAddChatMessage(script_tag .. " {ffffff}Модуль RP оружия перезагружен, настройки применены.", message_color)
+    elseif module_name == 'arz_veh' then
+        cacheVehicleMosels()
+        sampAddChatMessage(script_tag .. " {ffffff}Модуль транспорта перезагружен, названия моделей обновлены.", message_color)
+    elseif module_name == 'piemenu' then
+        -- ничего дополнительно не требуется
+    elseif module_name == 'commands' then
+        sampAddChatMessage(script_tag .. " {ffffff}Модуль команд перезагружен. Изменения вступят в силу после перезапуска скрипта (/fixsize).", message_color)
+        return
+    end
+    sampAddChatMessage(script_tag .. " {ffffff}Модуль '" .. arg .. "' успешно перезагружен!", message_color)
+end)
+
+sampRegisterChatCommand("reloadallmodules", function()
+    local reloaded = {}
+    for module_name, _ in pairs(modules) do
+        load_module(module_name)
+        table.insert(reloaded, module_name)
+        if module_name == 'rpgun' then
+            initialize_guns()
+        elseif module_name == 'arz_veh' then
+            cacheVehicleMosels()
+        end
+    end
+    sampAddChatMessage(script_tag .. " {ffffff}Перезагружены модули: " .. table.concat(reloaded, ", "), message_color)
+    sampAddChatMessage(script_tag .. " {ffffff}Для применения изменений в командах перезапустите скрипт (/fixsize).", message_color)
+end)
+
+    sampRegisterChatCommand("ts", function()
+    print_scr_time()
+end)
+
+    sampRegisterChatCommand("phelp", function()
+    MODULE.Help.Window[0] = true
+end)
+
     if not isMode('none') then
         sampRegisterChatCommand("mb", function(arg)
             if not MODULE.Binder.state.isActive then
@@ -4131,6 +4198,72 @@ function initialize_commands()
         end
     end
 end
+
+function getAllCommands()
+    local all = {}
+
+    -- Стандартные команды (не из биндера)
+    local standard = {
+        {cmd = "ph", desc = "Открыть главное меню хелпера"},
+        {cmd = "binder", desc = "Открыть меню команд (биндер)"},
+        {cmd = "hm [ID]", desc = "Открыть FastMenu для игрока"},
+        {cmd = "stop", desc = "Остановить текущую отыгровку"},
+        {cmd = "fixsize", desc = "Сбросить размер интерфейса"},
+        {cmd = "rpguns", desc = "Настройка RP отыгровки оружия"},
+        {cmd = "pnv", desc = "Надеть/снять ПНВ"},
+        {cmd = "irv", desc = "Надеть/снять ИК-очки"},
+        {cmd = "cruise", desc = "Адаптивный круиз-контроль"},
+        {cmd = "addblock [text]", desc = "Добавить строку в фильтр чата"},
+        {cmd = "clearlist", desc = "Показать список фильтруемых строк"},
+        {cmd = "removeblock [text]", desc = "Удалить строку из фильтра"},
+        {cmd = "debug", desc = "Включить/выключить отладку"},
+        {cmd = "reloadmodule [name module]", desc = "Перезагрузить указанный модуль (названия: commands, departament, notes, rpgun, smart_rptp, arz_veh, piemenu, clear)"},
+        {cmd = "reloadallmodules", desc = "Перезагрузить все модули"},
+        {cmd = "ts", desc = "Отправить /time и сделать скриншот"}
+    }
+
+    -- Добавляем стандартные команды (избегаем дублей)
+    for _, scmd in ipairs(standard) do
+        table.insert(all, scmd)
+    end
+
+    -- Команды из биндера (общие)
+    for _, cmd in ipairs(modules.commands.data.commands.my) do
+        if cmd.enable then
+            table.insert(all, {cmd = cmd.cmd, desc = cmd.description})
+        end
+    end
+
+    -- Команды для старшего состава (5-8 ранги)
+    for _, cmd in ipairs(modules.commands.data.commands_senior_staff.my) do
+        if cmd.enable then
+            table.insert(all, {cmd = cmd.cmd, desc = cmd.description .. " [5-8 ранг]"})
+        end
+    end
+
+    -- Команды для лидеров (9-10 ранги)
+    for _, cmd in ipairs(modules.commands.data.commands_manage.my) do
+        if cmd.enable then
+            table.insert(all, {cmd = cmd.cmd, desc = cmd.description .. " [9-10 ранг]"})
+        end
+    end
+
+    -- Убираем возможные дубликаты по имени команды (оставляем первое вхождение)
+    local seen = {}
+    local unique = {}
+    for _, item in ipairs(all) do
+        if not seen[item.cmd] then
+            seen[item.cmd] = true
+            table.insert(unique, item)
+        end
+    end
+
+    -- Сортируем по команде
+    table.sort(unique, function(a, b) return a.cmd < b.cmd end)
+
+    return unique
+end
+
 local cyrilic_characters = {
     [168] = 'Ё',
     [184] = 'ё',
@@ -7488,6 +7621,7 @@ addEventHandler('onWindowMessage', function(msg, key, lparam)
                 MODULE.FastMenuPlayers.Window[0] = false
                 MODULE.Initial.Window[0] = false
                 MODULE.ClearList.Window[0] = false
+                MODULE.Help.Window[0] = false
 
                 -- Пытаемся заблокировать клавишу
                 setVirtualKeyDown(27, false)
@@ -13493,6 +13627,69 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
     imgui.End()
 end)
 
+imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(700 * settings.general.custom_dpi, 500 * settings.general.custom_dpi), imgui.Cond.FirstUseEver)
+    imgui.Begin(fa.CIRCLE_QUESTION .. u8(" Список команд Prison Helper ") .. fa.CIRCLE_QUESTION, MODULE.Help.Window,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
+    change_dpi()
+
+    -- Получаем список команд
+    local commands = getAllCommands()
+    local total_commands = #commands
+
+    -- Отображаем общее количество команд
+    imgui.Text(u8("Всего команд: " .. total_commands))
+    imgui.Separator()
+
+    -- Поле поиска
+    imgui.PushItemWidth(-1)
+    imgui.InputTextWithHint("##help_filter", u8("Поиск команды..."), MODULE.Help.filter, 256)
+    imgui.Separator()
+
+    local filter = u8:decode(ffi.string(MODULE.Help.filter)):lower()
+    local matched = 0
+
+    -- Начинаем прокручиваемую область с таблицей
+    if imgui.BeginChild("##help_list", imgui.ImVec2(0, -40), true) then
+        imgui.Columns(2)
+        imgui.SetColumnWidth(0, 200 * settings.general.custom_dpi)
+        imgui.Text(u8("Команда"))
+        imgui.NextColumn()
+        imgui.Text(u8("Описание"))
+        imgui.Columns(1)
+        imgui.Separator()
+
+        for _, cmd in ipairs(commands) do
+            local cmd_lower = cmd.cmd:lower()
+            local desc_lower = cmd.desc:lower()
+            if filter == "" or cmd_lower:find(filter, 1, true) or desc_lower:find(filter, 1, true) then
+                matched = matched + 1
+                imgui.Columns(2)
+                imgui.SetColumnWidth(0, 200 * settings.general.custom_dpi)
+                imgui.Text("/" .. cmd.cmd)
+                imgui.NextColumn()
+                imgui.TextWrapped(u8(cmd.desc))
+                imgui.Columns(1)
+                imgui.Separator()
+            end
+        end
+
+        if filter ~= "" then
+            imgui.Separator()
+            imgui.Text(u8("Найдено команд: " .. matched .. " из " .. total_commands))
+        end
+        imgui.EndChild()
+    end
+
+    -- Кнопка закрытия
+    if imgui.Button(fa.CIRCLE_XMARK .. u8(" Закрыть"), imgui.ImVec2(imgui.GetMiddleButtonX(1), 25 * settings.general.custom_dpi)) then
+        MODULE.Help.Window[0] = false
+    end
+
+    imgui.End()
+end)
+
 ------------------------------- OTHER FUNCTIONS --------------------------
 -- Функция для проверки, открыто ли хотя бы одно окно хелпера
 function isAnyHelperWindowOpen()
@@ -13504,7 +13701,17 @@ function isAnyHelperWindowOpen()
                MODULE.FastMenu.Window[0] or MODULE.LeaderFastMenu.Window[0] or
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
                MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
-               MODULE.Initial.Window[0] or MODULE.ClearList.Window[0]
+               MODULE.Initial.Window[0] or MODULE.ClearList.Window[0] or MODULE.Help.Window[0]
+end
+
+function print_scr_time()
+	lua_thread.create(function()
+		sampSendChat('/time')
+		wait(1500)
+		setVirtualKeyDown(119, true)
+		wait(25)
+		setVirtualKeyDown(119, false)
+	end)
 end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
