@@ -103,7 +103,6 @@ local default_settings = {
     -- Только для тюрьмы
     md = {
         auto_doklad_damage = false,
-        auto_doklad_patrool = true,
         auto_door = false,
         auto_doklad_post = false,
         auto_mask = false
@@ -232,17 +231,18 @@ local modules = {
             dep_tag1 = '',
             dep_tag2 = '[Всем]',
             dep_tags = {
-                "[Всем]", "[Похитители]", "[Террористы]",
-                "[Диспетчер]", 'skip', "[МЮ]", "[Мин.Юст.]",
-                "[ЛСПД]", "[СФПД]", "[ЛВПД]", "[РКШД]",
-                "[СВАТ]", "[ФБР]", 'skip', "[МО]",
-                "[Мин.Обороны]", "[ЛСа]", "[СФа]", "[ТСР]",
-                'skip', "[МЗ]", "[МЗП]", "[Мин.Здрав.]",
-                "[ЛСМЦ]", "[СФМЦ]", "[ЛВМЦ]", "[ДМЦ]", "[ПД]",
-                'skip', "[ЦА]", "[ЦЛ]", "[СК]", "[Пра-во]",
-                "[Губернатор]", "[Адвокатура]",
-                "[Прокурор]", "[Cудья]", 'skip', "[СМИ]",
-                "[СМИ ЛС]", "[СМИ СФ]", "[СМИ ЛВ]"
+                "[Всем]", "[Похитители]",
+                "[Террористы]", "[Диспетчер]", 'skip',
+                "[МЮ]", "[Мин.Юст.]", "[ЛСПД]", "[СФПД]",
+                "[ЛВПД]", "[РКШД]", "[СВАТ]", "[ФБР]", 'skip',
+                "[МО]", "[Мин.Обороны]", "[ЛСа]", "[СФа]",
+                "[ТСР]", 'skip', "[МЗ]", "[МЗП]",
+                "[Мин.Здрав.]", "[ЛСМЦ]", "[СФМЦ]",
+                "[ЛВМЦ]", "[ДМЦ]", "[ПД]", 'skip', "[ЦА]", "[ЦЛ]",
+                "[СК]", "[Пра-во]", "[Губернатор]",
+                "[Адвокатура]", "[Прокурор]", "[Cудья]",
+                'skip', "[СМИ]", "[СМИ ЛС]", "[СМИ СФ]",
+                "[СМИ ЛВ]"
             },
             dep_tags_en = {
                 "[ALL]", 'skip', "[MJ]", "[Min.Just.]", "[LSPD]", "[SFPD]",
@@ -366,7 +366,7 @@ local modules = {
                     }, {
                         cmd = 'camon',
                         description = 'Включить cкрытую боди камеру',
-                        text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки включил{sex} боди камеру.&/do Скрытая боди камера включена и снимает всё происходящее.',
+                        text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки включил{sex} боди камеру.&/do Скрытая боди камера включена и снимает всё происходящее.&/time',
                         arg = '',
                         enable = true,
                         waiting = '3.5',
@@ -374,7 +374,7 @@ local modules = {
                     }, {
                         cmd = 'camoff',
                         description = 'Выключить cкрытую боди камеру',
-                        text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки выключил{sex} боди камеру.&/do Скрытая боди камера выключена и больше не снимает всё происходящее.',
+                        text = '/time&/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки выключил{sex} боди камеру.&/do Скрытая боди камера выключена и больше не снимает всё происходящее.',
                         arg = '',
                         enable = true,
                         waiting = '3.5',
@@ -444,36 +444,9 @@ local modules = {
                         bind = "{}",
                         in_fastmenu = true
                     }, {
-                        cmd = 'sr',
-                        description = 'Продажа ранга (частные)',
-                        text = '/me достаёт документы на подпись и передаёт их человеку напротив&{sellrank({arg_id})}',
-                        arg = '{arg_id}',
-                        enable = true,
-                        waiting = '2',
-                        bind = "{}",
-                        in_fastmenu = true
-                    }, {
-                        cmd = 'rp',
-                        description = 'Выдача сотруднику /fractionrp',
-                        text = '/fractionrp {arg_id}',
-                        arg = '{arg_id}',
-                        enable = true,
-                        waiting = '2',
-                        bind = "{}",
-                        in_fastmenu = true
-                    }, {
                         cmd = 'gr',
                         description = 'Повышение/понижение cотрудника',
                         text = '{show_rank_menu}&/me достаёт из кармана свой телефон и заходит в базу данных {fraction_tag}&/me изменяет информацию о сотруднике {get_ru_nick({arg_id})} в базе данных {fraction_tag}&/me выходит с базы данных и убирает телефон обратно в карман&/giverank {arg_id} {get_rank}&/r Сотрудник {get_ru_nick({arg_id})} получил новую должность!',
-                        arg = '{arg_id}',
-                        enable = true,
-                        waiting = '2',
-                        bind = "{}",
-                        in_fastmenu = true
-                    }, {
-                        cmd = 'vize',
-                        description = 'Управление Vice City визой сотрудника',
-                        text = '/me достаёт из кармана свой телефон и заходит в базу данных {fraction_tag}&/me изменяет информацию о сотруднике {get_ru_nick({arg_id})} в базе данных {fraction_tag}&/me выходит с базы данных и убирает телефон обратно в карман&{lmenu_vc_vize}',
                         arg = '{arg_id}',
                         enable = true,
                         waiting = '2',
@@ -1360,7 +1333,6 @@ local MODULE = {
     GiveRank = {Window = imgui.new.bool(), number = imgui.new.int(5)},
     Sobes = {Window = imgui.new.bool()},
     LeadTools = {
-        vc_vize = {bool = false, player_id = nil},
         auto_uninvite = {checker = false, msg1 = '', msg2 = '', msg3 = ''},
         spawncar = false,
         platoon = {check = false, player_id = nil},
@@ -1415,14 +1387,40 @@ local MODULE = {
     FONT = nil,
     DEBUG = false,
     Taser = {Window = imgui.new.bool()},
-    ClearList = {
+    Patrool = {
         Window = imgui.new.bool(),
-        page = imgui.new.int(0),
-        itemsPerPage = 20
+        ComboMark = imgui.new.int(1),
+        marks = {
+            'ADAM', 'LINCOLN', 'MARY', 'KING', 'HENRY', 'AIR', 'ASD', 'CHARLIE',
+            'ROBERT', 'SUPERVISOR', 'DAVID', 'EDWARD', 'NORA'
+        },
+        ImItemsMark = nil,
+        ComboCode = imgui.new.int(5),
+        codes = {
+            'CODE 0', 'CODE 1', 'CODE 2', 'CODE 2 HIGHT', 'CODE 3', 'CODE 4',
+            'CODE 4 ADAM', 'CODE 5', 'CODE 6', 'CODE 7', 'CODE 30',
+            'CODE 30 RINGER', 'CODE 37', 'CODE TOM'
+        },
+        ImItemsCode = nil,
+        active = false,
+        start_time = 0,
+        current_time = 0,
+        time = 0,
+        process_doklad = false,
+        code = 'CODE 4',
+        mark = 'ADAM'
     },
+    ClearList = {
+    Window = imgui.new.bool(),
+    page = imgui.new.int(0),
+    itemsPerPage = 20,
+    edit_index = -1,
+    edit_buffer = imgui.new.char[256](''),
+    edit_window = imgui.new.bool(false)  -- новое поле
+},
     Help = {
         Window = imgui.new.bool(),
-        filter = imgui.new.char[256]('')  -- поле для ввода поиска
+        filter = imgui.new.char[256]('') -- поле для ввода поиска
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -1457,7 +1455,7 @@ MODULE.Binder.tags = {
     fraction_tag = function() return settings.player_info.fraction_tag end,
     fraction = function() return settings.player_info.fraction end,
     sex = function()
-        return (settings.player_info.sex == 'Женщина') and 'a' or ''
+        return (settings.player_info.sex == 'Женщина') and 'а' or ''
     end,
     get_time = function() return os.date("%H:%M:%S") end,
     get_date = function() return os.date("%H:%M:%S") end,
@@ -2994,7 +2992,8 @@ if hotkey_no_errors and not isMode('') then
                 end
             end
         end)
-        ActionHotKey = hotkey.RegisterHotKey('Action Key', false, safeDecodeJson(
+        ActionHotKey = hotkey.RegisterHotKey('Action Key', false,
+                                             safeDecodeJson(
                                                  settings.general.bind_action),
                                              function()
             if MODULE.Binder.state.isPause and MODULE.CommandPause.Window[0] then
@@ -3017,10 +3016,9 @@ if hotkey_no_errors and not isMode('') then
         if hotkeys[hotkeyName] then hotkey.RemoveHotKey(hotkeyName) end
         if command.arg == "" and command.bind ~= nil and command.bind ~= '{}' and
             command.bind ~= '[]' then
-                local bindTable = safeDecodeJson(command.bind)
+            local bindTable = safeDecodeJson(command.bind)
             hotkeys[hotkeyName] = hotkey.RegisterHotKey(hotkeyName, false,
-                                                        bindTable,
-                                                        function()
+                                                        bindTable, function()
                 if (not (sampIsChatInputActive() or sampIsDialogActive() or
                     isSampfuncsConsoleActive())) then
                     sampProcessChatInput('/' .. command.cmd)
@@ -3576,19 +3574,6 @@ function register_command(chat_cmd, cmd_arg, cmd_text, cmd_waiting)
                                 -- не используется в армии/тюрьме
                             elseif line == '{show_recept_menu}' then
                             elseif line == '{show_ant_menu}' then
-                            elseif line == '{lmenu_vc_vize}' then
-                                if cmd_arg == '{arg_id}' then
-                                    MODULE.LeadTools.vc_vize.player_id = arg
-                                elseif cmd_arg == '{arg_id} {arg2}' then
-                                    local arg_id, arg2 = arg:match('(%d+) (.+)')
-                                    if arg_id and arg2 and isParamSampID(arg_id) then
-                                        MODULE.LeadTools.vc_vize.player_id =
-                                            tonumber(arg_id)
-                                    end
-                                end
-                                MODULE.LeadTools.vc_vize.bool = true
-                                sampSendChat("/lmenu")
-                                break
                             elseif line == '{give_platoon}' then
                                 if cmd_arg == '{arg_id}' then
                                     MODULE.LeadTools.platoon.player_id = arg
@@ -3974,55 +3959,69 @@ function initialize_commands()
     end)
 
     sampRegisterChatCommand("reloadmodule", function(arg)
-    if not arg or arg == "" then
-        sampAddChatMessage(script_tag .. " {ffffff}Используйте: /reloadmodule [название модуля]", message_color)
-        return
-    end
-    local module_name = arg:lower()
-    if not modules[module_name] then
-        sampAddChatMessage(script_tag .. " {ffffff}Модуль '" .. arg .. "' не найден!", message_color)
-        return
-    end
-    -- Перезагружаем модуль
-    load_module(module_name)
-    -- Дополнительные действия для некоторых модулей
-    if module_name == 'rpgun' then
-        initialize_guns()
-        sampAddChatMessage(script_tag .. " {ffffff}Модуль RP оружия перезагружен, настройки применены.", message_color)
-    elseif module_name == 'arz_veh' then
-        cacheVehicleMosels()
-        sampAddChatMessage(script_tag .. " {ffffff}Модуль транспорта перезагружен, названия моделей обновлены.", message_color)
-    elseif module_name == 'piemenu' then
-        -- ничего дополнительно не требуется
-    elseif module_name == 'commands' then
-        sampAddChatMessage(script_tag .. " {ffffff}Модуль команд перезагружен. Изменения вступят в силу после перезапуска скрипта (/fixsize).", message_color)
-        return
-    end
-    sampAddChatMessage(script_tag .. " {ffffff}Модуль '" .. arg .. "' успешно перезагружен!", message_color)
-end)
-
-sampRegisterChatCommand("reloadallmodules", function()
-    local reloaded = {}
-    for module_name, _ in pairs(modules) do
+        if not arg or arg == "" then
+            sampAddChatMessage(script_tag ..
+                                   " {ffffff}Используйте: /reloadmodule [название модуля]",
+                               message_color)
+            return
+        end
+        local module_name = arg:lower()
+        if not modules[module_name] then
+            sampAddChatMessage(
+                script_tag .. " {ffffff}Модуль '" .. arg ..
+                    "' не найден!", message_color)
+            return
+        end
+        -- Перезагружаем модуль
         load_module(module_name)
-        table.insert(reloaded, module_name)
+        -- Дополнительные действия для некоторых модулей
         if module_name == 'rpgun' then
             initialize_guns()
+            sampAddChatMessage(script_tag ..
+                                   " {ffffff}Модуль RP оружия перезагружен, настройки применены.",
+                               message_color)
         elseif module_name == 'arz_veh' then
             cacheVehicleMosels()
+            sampAddChatMessage(script_tag ..
+                                   " {ffffff}Модуль транспорта перезагружен, названия моделей обновлены.",
+                               message_color)
+        elseif module_name == 'piemenu' then
+            -- ничего дополнительно не требуется
+        elseif module_name == 'commands' then
+            sampAddChatMessage(script_tag ..
+                                   " {ffffff}Модуль команд перезагружен. Изменения вступят в силу после перезапуска скрипта.",
+                               message_color)
+            return
         end
-    end
-    sampAddChatMessage(script_tag .. " {ffffff}Перезагружены модули: " .. table.concat(reloaded, ", "), message_color)
-    sampAddChatMessage(script_tag .. " {ffffff}Для применения изменений в командах перезапустите скрипт (/fixsize).", message_color)
-end)
+        sampAddChatMessage(script_tag .. " {ffffff}Модуль '" .. arg ..
+                               "' успешно перезагружен!",
+                           message_color)
+    end)
 
-    sampRegisterChatCommand("ts", function()
-    print_scr_time()
-end)
+    sampRegisterChatCommand("reloadallmodules", function()
+        local reloaded = {}
+        for module_name, _ in pairs(modules) do
+            load_module(module_name)
+            table.insert(reloaded, module_name)
+            if module_name == 'rpgun' then
+                initialize_guns()
+            elseif module_name == 'arz_veh' then
+                cacheVehicleMosels()
+            end
+        end
+        sampAddChatMessage(script_tag ..
+                               " {ffffff}Перезагружены модули: " ..
+                               table.concat(reloaded, ", "), message_color)
+        sampAddChatMessage(script_tag ..
+                               " {ffffff}Для применения изменений в командах перезапустите скрипт (/fixsize).",
+                           message_color)
+    end)
+
+    sampRegisterChatCommand("ts", function() print_scr_time() end)
 
     sampRegisterChatCommand("phelp", function()
-    MODULE.Help.Window[0] = not MODULE.Help.Window[0]
-end)
+        MODULE.Help.Window[0] = not MODULE.Help.Window[0]
+    end)
 
     if not isMode('none') then
         sampRegisterChatCommand("mb", function(arg)
@@ -4076,16 +4075,16 @@ end)
             end
         end)
     end
-        sampRegisterChatCommand("post", function(arg)
-            if not MODULE.Binder.state.isActive then
-                MODULE.Post.Window[0] = not MODULE.Post.Window[0]
-            else
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
-                                   message_color)
-                playNotifySound()
-            end
-        end)
+    sampRegisterChatCommand("post", function(arg)
+        if not MODULE.Binder.state.isActive then
+            MODULE.Post.Window[0] = not MODULE.Post.Window[0]
+        else
+            sampAddChatMessage(script_tag ..
+                                   ' {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
+                               message_color)
+            playNotifySound()
+        end
+    end)
     if isMode('prison') then
         sampRegisterChatCommand("pum", function(arg)
             if not MODULE.Binder.state.isActive then
@@ -4204,28 +4203,57 @@ function getAllCommands()
 
     -- Стандартные команды (не из биндера)
     local standard = {
-        {cmd = "ph", desc = "Открыть главное меню хелпера"},
-        {cmd = "binder", desc = "Открыть меню команд (биндер)"},
+        {
+            cmd = "ph",
+            desc = "Открыть главное меню хелпера"
+        },
+        {
+            cmd = "binder",
+            desc = "Открыть меню команд (биндер)"
+        },
         {cmd = "hm [ID]", desc = "Открыть FastMenu для игрока"},
-        {cmd = "stop", desc = "Остановить текущую отыгровку"},
-        {cmd = "fixsize", desc = "Сбросить размер интерфейса"},
-        {cmd = "rpguns", desc = "Настройка RP отыгровки оружия"},
-        {cmd = "pnv", desc = "Надеть/снять ПНВ"},
+        {
+            cmd = "stop",
+            desc = "Остановить текущую отыгровку"
+        },
+        {
+            cmd = "fixsize",
+            desc = "Сбросить размер интерфейса"
+        }, {
+            cmd = "rpguns",
+            desc = "Настройка RP отыгровки оружия"
+        }, {cmd = "pnv", desc = "Надеть/снять ПНВ"},
         {cmd = "irv", desc = "Надеть/снять ИК-очки"},
-        {cmd = "cruise", desc = "Адаптивный круиз-контроль"},
-        {cmd = "addblock [text]", desc = "Добавить строку в фильтр чата"},
-        {cmd = "clearlist", desc = "Показать список фильтруемых строк"},
-        {cmd = "removeblock [text]", desc = "Удалить строку из фильтра"},
-        {cmd = "debug", desc = "Включить/выключить отладку"},
-        {cmd = "reloadmodule [name module]", desc = "Перезагрузить указанный модуль (названия: commands, departament, notes, rpgun, smart_rptp, arz_veh, piemenu, clear)"},
-        {cmd = "reloadallmodules", desc = "Перезагрузить все модули"},
-        {cmd = "ts", desc = "Отправить /time и сделать скриншот"}
+        {
+            cmd = "cruise",
+            desc = "Адаптивный круиз-контроль"
+        }, {
+            cmd = "addblock [text]",
+            desc = "Добавить строку в фильтр чата"
+        }, {
+            cmd = "clearlist",
+            desc = "Показать список фильтруемых строк"
+        }, {
+            cmd = "removeblock [text]",
+            desc = "Удалить строку из фильтра"
+        },
+        {
+            cmd = "debug",
+            desc = "Включить/выключить отладку"
+        }, {
+            cmd = "reloadmodule [name module]",
+            desc = "Перезагрузить указанный модуль (названия: commands, departament, notes, rpgun, smart_rptp, arz_veh, piemenu, clear)"
+        }, {
+            cmd = "reloadallmodules",
+            desc = "Перезагрузить все модули"
+        }, {
+            cmd = "ts",
+            desc = "Отправить /time и сделать скриншот"
+        }
     }
 
     -- Добавляем стандартные команды (избегаем дублей)
-    for _, scmd in ipairs(standard) do
-        table.insert(all, scmd)
-    end
+    for _, scmd in ipairs(standard) do table.insert(all, scmd) end
 
     -- Команды из биндера (общие)
     for _, cmd in ipairs(modules.commands.data.commands.my) do
@@ -4237,14 +4265,20 @@ function getAllCommands()
     -- Команды для старшего состава (5-8 ранги)
     for _, cmd in ipairs(modules.commands.data.commands_senior_staff.my) do
         if cmd.enable then
-            table.insert(all, {cmd = cmd.cmd, desc = cmd.description .. " [5-8 ранг]"})
+            table.insert(all, {
+                cmd = cmd.cmd,
+                desc = cmd.description .. " [5-8 ранг]"
+            })
         end
     end
 
     -- Команды для лидеров (9-10 ранги)
     for _, cmd in ipairs(modules.commands.data.commands_manage.my) do
         if cmd.enable then
-            table.insert(all, {cmd = cmd.cmd, desc = cmd.description .. " [9-10 ранг]"})
+            table.insert(all, {
+                cmd = cmd.cmd,
+                desc = cmd.description .. " [9-10 ранг]"
+            })
         end
     end
 
@@ -6692,17 +6726,18 @@ function sampev.onServerMessage(color, text)
         print('[ServerMessage] Color ' .. color .. " | Text " .. text)
     end
 
-        -- Удаление пустых строк из чата
+    -- Удаление пустых строк из чата
     local stripped = text:gsub("{[%x%a]+}", ""):gsub("%s+", "")
-    if stripped == "" then
-        return false
-    end
+    if stripped == "" then return false end
 
     if settings.general.ping and text:match('@' .. MODULE.Binder.tags.my_nick()) then
         sampAddChatMessage(script_tag ..
                                ' {ffffff}Кто-то упомянул вас в чате!',
                            message_color)
         playNotifySound()
+        show_arz_notify('info', 'Prison Helper',
+                    "Вас кто-то упомянул в чате!",
+                    5000)
     end
 
     if settings.md.auto_doklad_post then
@@ -6878,24 +6913,27 @@ function sampev.onServerMessage(color, text)
     end
 
     if settings.general.clear_chat then
-    -- Проверка на "чистые" строки
-    if modules.clear and modules.clear.data and type(modules.clear.data) == 'table' then
-        -- Удаляем цветовые коды из текста
-        local cleanText = stripColorCodes(text):lower()
-        for _, pattern in ipairs(modules.clear.data) do
-            if pattern and type(pattern) == 'string' then
-                -- Приводим шаблон к нижнему регистру и ищем вхождение
-                if cleanText:find(pattern:lower(), 1, true) then
-                    -- Сообщение содержит запрещённую подстроку – скрываем
-                    if MODULE.DEBUG then
-                        sampAddChatMessage('[Clear] Заблокировано: ' .. pattern, message_color)
+        -- Проверка на "чистые" строки
+        if modules.clear and modules.clear.data and type(modules.clear.data) ==
+            'table' then
+            -- Удаляем цветовые коды из текста
+            local cleanText = stripColorCodes(text):lower()
+            for _, pattern in ipairs(modules.clear.data) do
+                if pattern and type(pattern) == 'string' then
+                    -- Приводим шаблон к нижнему регистру и ищем вхождение
+                    if cleanText:find(pattern:lower(), 1, true) then
+                        -- Сообщение содержит запрещённую подстроку – скрываем
+                        if MODULE.DEBUG then
+                            sampAddChatMessage(
+                                '[Clear] Заблокировано: ' ..
+                                    pattern, message_color)
+                        end
+                        return false
                     end
-                    return false
                 end
             end
         end
     end
-end
 end
 function sampev.onSendChat(text)
     if MODULE.DEBUG then
@@ -6935,8 +6973,8 @@ function sampev.onSendCommand(text)
     if settings.general.ping then
         local chats = {
             '/vr', '/fam', '/al', '/s', '/b', '/n', '/r', '/rb', '/f', '/fb',
-            '/j', '/jb', '/m', '/do'
-        }
+            '/j', '/jb', '/m', '/do', '/a', '/pm'
+        } -- ??
         for _, cmd in ipairs(chats) do
             if text:find('^' .. cmd .. ' ') then
                 local cmd_text = text:match('^' .. cmd .. ' (.+)')
@@ -6954,8 +6992,7 @@ function sampev.onSendCommand(text)
 
     if settings.player_info.rp_chat then
         local chats = {
-            '/vr', '/fam', '/al', '/s', '/b', '/n', '/r', '/rb', '/f', '/fb',
-            '/j', '/jb', '/m', '/do'
+            '/s', '/r', '/f', '/m', '/do'
         }
         for _, cmd in ipairs(chats) do
             if text:find('^' .. cmd .. ' ') then
@@ -7254,45 +7291,6 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 else
                     count = count + 1
                 end
-            end
-        end
-        if MODULE.LeadTools.vc_vize.bool then -- виза для ВС
-            if text:find(
-                'Управление разрешениями на командировку в Vice City') then
-                local count = 0
-                for line in text:gmatch('[^\r\n]+') do
-                    if line:find(
-                        'Управление разрешениями на командировку в Vice City') then
-                        sampSendDialogResponse(dialogid, 1, count, 0)
-                        return false
-                    else
-                        count = count + 1
-                    end
-                end
-            end
-            if title:find(
-                'Выдача разрешений на поездки Vice City') then
-                MODULE.LeadTools.vc_vize.bool = false
-                sampSendChat("/r Сотруднику " .. TranslateNick(
-                                 sampGetPlayerNickname(
-                                     tonumber(MODULE.LeadTools.vc_vize.player_id))) ..
-                                 " выдана виза Vice City!")
-                sampSendDialogResponse(dialogid, 1, 0, tostring(
-                                           MODULE.LeadTools.vc_vize.player_id))
-                return false
-            end
-            if title:find(
-                'Забрать разрешение на поездки Vice City') then
-                MODULE.LeadTools.vc_vize.bool = false
-                sampSendChat("/r У сотрудника " .. TranslateNick(
-                                 sampGetPlayerNickname(
-                                     tonumber(MODULE.LeadTools.vc_vize.player_id))) ..
-                                 " была изьята виза Vice City!")
-                sampSendDialogResponse(dialogid, 1, 0, tostring(
-                                           sampGetPlayerNickname(
-                                               MODULE.LeadTools.vc_vize
-                                                   .player_id)))
-                return false
             end
         end
         if (MODULE.LeadTools.platoon.check) then
@@ -9247,8 +9245,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                 end
                 if imgui.BeginTabItem(fa.BARS ..
                                           u8 ' RP команды (5-8 ранги)') then
-                    if settings.player_info.fraction_rank_number >= 5 and
-                        settings.player_info.fraction_rank_number <= 8 then
+                    if settings.player_info.fraction_rank_number >= 5 then
                         render_cmds_senior()
                     else
                         if imgui.BeginChild('##no_rank_access_senior',
@@ -9823,7 +9820,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                     local number =
                                         #MODULE.PieMenu.editor.current
                                     -- Убираем VIP-ограничение, ставим лимит 20
-                                    if number < 20 then
+                                    if number < 5 then
                                         number = number + 1
                                         if bool then
                                             table.insert(
@@ -9843,7 +9840,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                         save_module('piemenu')
                                     else
                                         sampAddChatMessage(script_tag ..
-                                                               ' {ffffff}Лимит 20 элементов в одном списке, используйте другие подменю!',
+                                                               ' {ffffff}Лимит 5 элементов в одном списке, используйте другие подменю!',
                                                            message_color)
                                     end
                                     imgui.CloseCurrentPopup()
@@ -11265,8 +11262,12 @@ function render_fractions_functions()
         render_assist_item("Упоминание",
                            "Упоминание в чате, также замена ID на NickName игрока",
                            settings.general, "ping")
-        render_assist_item("Удаление мусора","Удаление лишнего из чата",settings.general, "clear_chat")
-        render_assist_item("Режим авто-маски","Автоматически надевает маску спустя 20 минут",settings.md, "auto_mask")
+        render_assist_item("Удаление мусора",
+                           "Удаление лишнего из чата",
+                           settings.general, "clear_chat")
+        render_assist_item("Режим авто-маски",
+                           "Автоматически продливает маску",
+                           settings.md, "auto_mask")
         if not isMode('none') then
             -- Убраны isVip
             render_assist_item("Обновление списка /mb",
@@ -11309,10 +11310,6 @@ function render_fractions_functions()
                         "Доклад CODE 0 при нападении",
                         "При получении урона отправляет доклад /r CODE 0 с указанием ника нападавшего.",
                         settings.md, "auto_doklad_damage")
-                    render_assist_item(
-                        "Доклад в патруле (/patrool)",
-                        "Автоматически отправляет доклад в рацию каждые 5 минут в патруле.\n(вы должны начать /patrool чтобы функция работала)",
-                        settings.md, "auto_doklad_patrool")
                     imgui.Separator()
                     imgui.EndChild()
                 end
@@ -11441,7 +11438,7 @@ if not (isMode('ghetto') or isMode('mafia')) then
     imgui.OnFrame(function() return MODULE.Sobes.Window[0] end, function(player)
         if player_id ~= nil and isParamSampID(player_id) then
             imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
-                                   imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                       imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
             imgui.Begin(fa.PERSON_CIRCLE_CHECK ..
                             u8 ' Проведение собеседования игроку ' ..
                             u8(sampGetPlayerNickname(player_id)) .. ' ' ..
@@ -11991,134 +11988,91 @@ if not (isMode('ghetto') or isMode('mafia')) then
         end
         imgui.End()
     end)
-    imgui.OnFrame(function() return MODULE.Post.Window[0] end, function(player)
-        imgui.SetNextWindowPos(
-            imgui.ImVec2(settings.windows_pos.patrool_menu.x,
-                         settings.windows_pos.patrool_menu.y),
-            imgui.Cond.FirstUseEver)
-        imgui.Begin(
-            getHelperIcon() .. u8 " Prison Helper " .. getHelperIcon() ..
-                '##post_info_menu', MODULE.Post.Window,
-            imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
-                imgui.WindowFlags.AlwaysAutoResize)
-        change_dpi()
-        safery_disable_cursor(player)
-        if MODULE.Post.active then
-            imgui.Text(fa.MAP_LOCATION_DOT .. u8(' Пост: ') ..
-                           u8(MODULE.Binder.tags.get_post_name()))
-            imgui.Text(fa.CLOCK .. u8(' Время на посту: ') ..
-                           u8(MODULE.Binder.tags.get_post_time()))
-            imgui.Text(fa.CIRCLE_INFO .. u8(' Состояние: ') ..
-                           u8(MODULE.Binder.tags.get_post_code()))
-            imgui.SameLine()
-            if imgui.SmallButton(fa.GEAR) then
-                imgui.OpenPopup(fa.BUILDING_SHIELD ..
-                                    u8(' Prison Helper##post_select_code'))
-            end
-            imgui.Separator()
-            if imgui.Button(fa.WALKIE_TALKIE .. u8(' Доклад##post'),
-                            imgui.ImVec2(100 * settings.general.custom_dpi,
-                                         25 * settings.general.custom_dpi)) then
-                if (not MODULE.Post.process_doklad) then
-                    MODULE.Post.process_doklad = true
-                    lua_thread.create(function()
-                        MODULE.Binder.state.isActive = true
-                        sampSendChat('/r Докладывает ' ..
-                                         MODULE.Binder.tags.my_doklad_nick() ..
-                                         '. Пост: ' ..
-                                         MODULE.Binder.tags.get_post_name() ..
-                                         ', состояние ' ..
-                                         MODULE.Binder.tags.get_post_code())
-                        wait(1500)
-                        sampSendChat(
-                            '/r Нахожусь на посту уже ' ..
-                                MODULE.Binder.tags.get_post_format_time())
-                        MODULE.Binder.state.isActive = false
-                        MODULE.Post.process_doklad = false
-                    end)
-                end
-            end
-            imgui.SameLine()
-            if imgui.Button(fa.CIRCLE_STOP .. u8(' Конец##post'),
-                            imgui.ImVec2(100 * settings.general.custom_dpi,
-                                         25 * settings.general.custom_dpi)) then
-                lua_thread.create(function()
-                    MODULE.Post.Window[0] = false
-                    MODULE.Post.active = false
-                    MODULE.Binder.state.isActive = true
-                    sampSendChat('/r ' .. MODULE.Binder.tags.my_doklad_nick() ..
-                                     ' на CONTROL. Пост: ' ..
-                                     MODULE.Binder.tags.get_post_name() ..
-                                     ', состояние ' ..
-                                     MODULE.Binder.tags.get_post_code() .. '.')
-                    wait(1500)
-                    sampSendChat(
-                        '/r Освобождаю пост! Простоял' ..
-                            MODULE.Binder.tags.sex() .. ' на посту: ' ..
-                            MODULE.Binder.tags.get_post_format_time() .. '.', -1)
-                    MODULE.Binder.state.isActive = false
-                    MODULE.Post.time = 0
-                    MODULE.Post.start_time = 0
-                    MODULE.Post.current_time = 0
-                    MODULE.Post.code = 'CODE4'
-                    MODULE.Post.ComboCode[0] = 5
-                end)
-            end
-        else
-            player.HideCursor = false
-            imgui.PushItemWidth(200 * settings.general.custom_dpi)
-            if imgui.InputTextWithHint(u8 '##post_name', u8(
-                                           'Укажите название вашего поста'),
-                                       MODULE.Post.input, 256) then
-                MODULE.Post.name = u8:decode(ffi.string(MODULE.Post.input))
-            end
-            imgui.Separator()
-            if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена##post',
-                            imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                         25 * settings.general.custom_dpi)) then
-                MODULE.Post.Window[0] = false
-            end
-            imgui.SameLine()
-            if imgui.Button(fa.WALKIE_TALKIE .. u8 ' Заступить##post',
-                            imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                         25 * settings.general.custom_dpi)) then
-                MODULE.Post.time = 0
-                MODULE.Post.start_time = os.time()
-                MODULE.Post.active = true
-                MODULE.Binder.state.isActive = true
-                sampSendChat('/r Докладывает ' ..
-                                 MODULE.Binder.tags.my_doklad_nick() ..
-                                 '. Заступаю на пост ' ..
-                                 MODULE.Binder.tags.get_post_name() ..
-                                 ', состояние ' ..
-                                 MODULE.Binder.tags.get_post_code() .. '.')
-                MODULE.Binder.state.isActive = false
-                imgui.CloseCurrentPopup()
-            end
-        end
-        if imgui.BeginPopup(fa.BUILDING_SHIELD ..
-                                u8(' Prison Helper##post_select_code'), _,
-                            imgui.WindowFlags.NoCollapse +
-                                imgui.WindowFlags.NoResize) then
-            change_dpi()
-            player.HideCursor = false
-            imgui.PushItemWidth(150 * settings.general.custom_dpi)
-            if imgui.Combo('##post_code', MODULE.Post.ComboCode,
-                           MODULE.Patrool.ImItemsCode, #MODULE.Post.codes) then
-                MODULE.Post.code = MODULE.Post.codes[MODULE.Post.ComboCode[0] +
-                                       1]
-                imgui.CloseCurrentPopup()
-            end
-            imgui.EndPopup()
-        end
-        local posX, posY = imgui.GetWindowPos().x, imgui.GetWindowPos().y
-        if posX ~= settings.windows_pos.post_menu.x or posY ~=
-            settings.windows_pos.post_menu.y then
-            settings.windows_pos.post_menu = {x = posX, y = posY}
-            save_settings()
-        end
-        imgui.End()
-    end)
+    imgui.OnFrame(
+		function() return MODULE.Post.Window[0] end,
+		function(player)
+			imgui.SetNextWindowPos(imgui.ImVec2(settings.windows_pos.patrool_menu.x, settings.windows_pos.patrool_menu.y), imgui.Cond.FirstUseEver)
+			imgui.Begin(getHelperIcon() .. u8" Prison Helper " .. getHelperIcon() .. '##post_info_menu', MODULE.Post.Window, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.AlwaysAutoResize )
+			change_dpi()
+			safery_disable_cursor(player)
+			if MODULE.Post.active then
+				imgui.Text(fa.MAP_LOCATION_DOT .. u8(' Пост: ') .. u8(MODULE.Binder.tags.get_post_name()))
+				imgui.Text(fa.CLOCK .. u8(' Время на посту: ') .. u8(MODULE.Binder.tags.get_post_time()))
+				imgui.Text(fa.CIRCLE_INFO .. u8(' Состояние: ') .. u8(MODULE.Binder.tags.get_post_code()))
+				imgui.SameLine()
+				if imgui.SmallButton(fa.GEAR) then
+					imgui.OpenPopup(fa.BUILDING_SHIELD .. u8(' Prison Helper##post_select_code'))
+				end
+				imgui.Separator()
+				if imgui.Button(fa.WALKIE_TALKIE .. u8(' Доклад##post'), imgui.ImVec2(100 * settings.general.custom_dpi, 25 * settings.general.custom_dpi)) then
+					if (not MODULE.Post.process_doklad) then
+						MODULE.Post.process_doklad = true
+						lua_thread.create(function()
+							MODULE.Binder.state.isActive = true
+							sampSendChat('/r Докладывает ' .. MODULE.Binder.tags.my_doklad_nick() .. '. Пост: ' .. MODULE.Binder.tags.get_post_name() .. ', состояние ' .. MODULE.Binder.tags.get_post_code())
+							wait(1500)
+							sampSendChat('/r Нахожусь на посту уже ' .. MODULE.Binder.tags.get_post_format_time())
+							MODULE.Binder.state.isActive = false
+							MODULE.Post.process_doklad = false
+						end)
+					end
+				end	
+				imgui.SameLine()
+				if imgui.Button(fa.CIRCLE_STOP .. u8(' Конец##post'), imgui.ImVec2(100 * settings.general.custom_dpi, 25 * settings.general.custom_dpi)) then
+					lua_thread.create(function()
+						MODULE.Post.Window[0] = false
+						MODULE.Post.active = false
+						MODULE.Binder.state.isActive = true
+						sampSendChat('/r ' .. MODULE.Binder.tags.my_doklad_nick() .. ' на CONTROL. Пост: ' .. MODULE.Binder.tags.get_post_name() .. ', состояние ' .. MODULE.Binder.tags.get_post_code() .. '.')
+						wait(1500)
+						sampSendChat('/r Освобождаю пост! Простоял' .. MODULE.Binder.tags.sex() .. ' на посту: ' .. MODULE.Binder.tags.get_post_format_time() .. '.', -1)
+						MODULE.Binder.state.isActive = false
+						MODULE.Post.time = 0
+						MODULE.Post.start_time = 0
+						MODULE.Post.current_time = 0
+						MODULE.Post.code = 'CODE4'
+						MODULE.Post.ComboCode[0] = 5
+					end)
+				end
+			else
+				player.HideCursor = false
+				imgui.PushItemWidth(200 * settings.general.custom_dpi)
+				if imgui.InputTextWithHint(u8'##post_name', u8('Укажите название вашего поста'), MODULE.Post.input, 256) then
+					MODULE.Post.name = u8:decode(ffi.string(MODULE.Post.input))
+				end
+				imgui.Separator()
+				if imgui.Button(fa.CIRCLE_XMARK .. u8' Отмена##post', imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 * settings.general.custom_dpi)) then
+					MODULE.Post.Window[0] = false
+				end
+				imgui.SameLine()
+				if imgui.Button(fa.WALKIE_TALKIE .. u8' Заступить##post', imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 * settings.general.custom_dpi)) then
+					MODULE.Post.time = 0
+					MODULE.Post.start_time = os.time()
+					MODULE.Post.active = true
+					MODULE.Binder.state.isActive = true
+					sampSendChat('/r Докладывает ' .. MODULE.Binder.tags.my_doklad_nick() .. '. Заступаю на пост ' .. MODULE.Binder.tags.get_post_name() .. ', состояние ' .. MODULE.Binder.tags.get_post_code() .. '.')
+					MODULE.Binder.state.isActive = false
+					imgui.CloseCurrentPopup()
+				end
+			end
+			if imgui.BeginPopup(fa.BUILDING_SHIELD .. u8(' Prison Helper##post_select_code'), _, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize  ) then
+				change_dpi()
+				player.HideCursor = false 
+				imgui.PushItemWidth(150 * settings.general.custom_dpi)
+				if imgui.Combo('##post_code', MODULE.Post.ComboCode, MODULE.Post.ImItemsCode, #MODULE.Post.codes) then
+					MODULE.Post.code = MODULE.Post.codes[MODULE.Post.ComboCode[0] + 1]
+					imgui.CloseCurrentPopup()
+				end
+				imgui.EndPopup()
+			end
+			local posX, posY = imgui.GetWindowPos().x, imgui.GetWindowPos().y
+			if posX ~= settings.windows_pos.post_menu.x or posY ~= settings.windows_pos.post_menu.y then
+				settings.windows_pos.post_menu = {x = posX, y = posY}
+				save_settings()
+			end
+			imgui.End()
+		end
+	)
 end
 if isMode('prison') then
     imgui.OnFrame(function() return MODULE.Taser.Window[0] end, function(player)
@@ -13523,6 +13477,7 @@ imgui.OnFrame(function() return MODULE.CommandStop.Window[0] end,
     end
     imgui.End()
 end)
+
 imgui.OnFrame(function() return MODULE.CommandPause.Window[0] end,
               function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY - 50 *
@@ -13568,13 +13523,11 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
     imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi,
-                                         414 * settings.general.custom_dpi), -- увеличено до 450
+                                         500 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
-    imgui.Begin(
-        fa.LIST .. u8 " Список фильтруемых строк " ..
-            fa.LIST, MODULE.ClearList.Window,
-        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
-            imgui.WindowFlags.NoScrollbar) -- добавлен NoScrollbar
+    imgui.Begin(fa.LIST .. u8 " Список фильтруемых строк " .. fa.LIST,
+                MODULE.ClearList.Window,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
     change_dpi()
 
     local data = modules.clear.data
@@ -13594,68 +13547,133 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
         imgui.CenterText(u8 "Список пуст")
     else
         local pageInfo = string.format("Стр. %d/%d (%d-%d из %d)",
-                                       page + 1, maxPage + 1, startIdx, endIdx,
-                                       total)
+                                       page + 1, maxPage + 1, startIdx, endIdx, total)
         imgui.Text(u8(pageInfo))
         imgui.Separator()
 
         if imgui.BeginChild("##clear_list",
                             imgui.ImVec2(840 * settings.general.custom_dpi,
-                                         320 * settings.general.custom_dpi), -- увеличено до 320
+                                         405 * settings.general.custom_dpi),
                             true) then
             for i = startIdx, endIdx do
                 local line = data[i]
                 imgui.Text(u8(i .. ". " .. line))
+                imgui.SameLine()
+                -- Кнопка редактирования
+                if imgui.SmallButton(fa.PEN_TO_SQUARE .. "##edit_" .. i) then
+                    MODULE.ClearList.edit_index = i
+                    imgui.StrCopy(MODULE.ClearList.edit_buffer, u8(line))
+                    MODULE.ClearList.edit_window[0] = true
+                end
+                imgui.SameLine()
+                -- Кнопка удаления
+                if imgui.SmallButton(fa.TRASH_CAN .. "##del_" .. i) then
+                    table.remove(data, i)
+                    save_module('clear')
+                    local new_total = #data
+                    local new_maxPage = math.max(0, math.ceil(new_total / perPage) - 1)
+                    if MODULE.ClearList.page[0] > new_maxPage then
+                        MODULE.ClearList.page[0] = new_maxPage
+                    end
+                    break
+                end
+                imgui.Separator()
             end
             imgui.EndChild()
         end
+    end
 
-        imgui.Separator()
-        -- Отступ перед кнопками
-        imgui.SetCursorPosY(imgui.GetCursorPosY() + 0 *
-                                settings.general.custom_dpi)
-
-        -- Кнопки навигации
-        local buttonWidth = 200 * settings.general.custom_dpi
-        local spacing = imgui.GetStyle().ItemSpacing.x
-        local totalWidth = buttonWidth * 2 + spacing
-        local startX = (imgui.GetWindowWidth() - totalWidth) / 2
-        imgui.SetCursorPosX(startX)
-
-        if page > 0 then
-            if imgui.Button(fa.ARROW_LEFT .. u8(" Предыдущая"),
-                            imgui.ImVec2(buttonWidth, 0)) then
-                MODULE.ClearList.page[0] = page - 1
+    -- Отдельное окно для редактирования (используем imgui.new.bool)
+    if MODULE.ClearList.edit_window[0] then
+        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                               imgui.Cond.Appearing, imgui.ImVec2(0.5, 0.5))
+        imgui.SetNextWindowSize(imgui.ImVec2(450 * settings.general.custom_dpi,
+                                             150 * settings.general.custom_dpi),
+                                imgui.Cond.Appearing)
+        if imgui.Begin(fa.PEN_TO_SQUARE .. u8 " Редактирование строки", MODULE.ClearList.edit_window,
+                       imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+                           imgui.WindowFlags.AlwaysAutoResize) then
+            change_dpi()
+            imgui.PushItemWidth(400 * settings.general.custom_dpi)
+            imgui.InputText("##edit_line", MODULE.ClearList.edit_buffer, 256)
+            imgui.Separator()
+            if imgui.Button(fa.CIRCLE_XMARK .. u8(" Отмена"),
+                            imgui.ImVec2(200 * settings.general.custom_dpi, 0)) then
+                MODULE.ClearList.edit_window[0] = false
+                MODULE.ClearList.edit_index = -1
             end
-        else
-            imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, 0.5)
-            imgui.Button(fa.ARROW_LEFT .. u8(" Предыдущая"),
-                         imgui.ImVec2(buttonWidth, 0))
-            imgui.PopStyleVar()
-        end
-
-        imgui.SameLine()
-
-        if page < maxPage then
-            if imgui.Button(fa.ARROW_RIGHT .. u8(" Следующая"),
-                            imgui.ImVec2(buttonWidth, 0)) then
-                MODULE.ClearList.page[0] = page + 1
+            imgui.SameLine()
+            if imgui.Button(fa.FLOPPY_DISK .. u8(" Сохранить"),
+                            imgui.ImVec2(200 * settings.general.custom_dpi, 0)) then
+                local new_text = u8:decode(ffi.string(MODULE.ClearList.edit_buffer))
+                if new_text ~= "" then
+                    local idx = MODULE.ClearList.edit_index
+                    if idx >= 1 and idx <= #data then
+                        data[idx] = new_text
+                        save_module('clear')
+                        MODULE.ClearList.edit_window[0] = false
+                        MODULE.ClearList.edit_index = -1
+                    else
+                        sampAddChatMessage(script_tag .. " {ffffff}Ошибка: индекс строки недействителен", message_color)
+                    end
+                else
+                    sampAddChatMessage(script_tag .. " {ffffff}Строка не может быть пустой!", message_color)
+                end
             end
+            imgui.End()
         else
-            imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, 0.5)
-            imgui.Button(fa.ARROW_RIGHT .. u8(" Следующая"),
-                         imgui.ImVec2(buttonWidth, 0))
-            imgui.PopStyleVar()
+            -- Если окно было закрыто крестиком, сбрасываем флаг
+            MODULE.ClearList.edit_window[0] = false
+            MODULE.ClearList.edit_index = -1
         end
+    end
+
+    -- Кнопки навигации
+    imgui.Separator()
+    local buttonWidth = 190 * settings.general.custom_dpi
+    local spacing = imgui.GetStyle().ItemSpacing.x
+    local totalWidth = buttonWidth * 2 + spacing
+    local startX = (imgui.GetWindowWidth() - totalWidth) / 2
+    imgui.SetCursorPosX(startX)
+
+    if page > 0 then
+        if imgui.Button(fa.ARROW_LEFT .. u8(" Предыдущая"),
+                        imgui.ImVec2(buttonWidth, 0)) then
+            MODULE.ClearList.page[0] = page - 1
+        end
+    else
+        imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, 0.5)
+        imgui.Button(fa.ARROW_LEFT .. u8(" Предыдущая"),
+                     imgui.ImVec2(buttonWidth, 0))
+        imgui.PopStyleVar()
+    end
+
+    imgui.SameLine()
+
+    if page < maxPage then
+        if imgui.Button(fa.ARROW_RIGHT .. u8(" Следующая"),
+                        imgui.ImVec2(buttonWidth, 0)) then
+            MODULE.ClearList.page[0] = page + 1
+        end
+    else
+        imgui.PushStyleVarFloat(imgui.StyleVar.Alpha, 0.5)
+        imgui.Button(fa.ARROW_RIGHT .. u8(" Следующая"),
+                     imgui.ImVec2(buttonWidth, 0))
+        imgui.PopStyleVar()
     end
 
     imgui.End()
 end)
 
 imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
-    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(700 * settings.general.custom_dpi, 500 * settings.general.custom_dpi), imgui.Cond.FirstUseEver)
-    imgui.Begin(fa.CIRCLE_QUESTION .. u8(" Список команд Prison Helper ") .. fa.CIRCLE_QUESTION, MODULE.Help.Window,
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(700 * settings.general.custom_dpi,
+                                         500 * settings.general.custom_dpi),
+                            imgui.Cond.FirstUseEver)
+    imgui.Begin(fa.CIRCLE_QUESTION ..
+                    u8(" Список команд Prison Helper ") ..
+                    fa.CIRCLE_QUESTION, MODULE.Help.Window,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
     change_dpi()
 
@@ -13669,7 +13687,8 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
 
     -- Поле поиска
     imgui.PushItemWidth(-1)
-    imgui.InputTextWithHint("##help_filter", u8("Поиск команды..."), MODULE.Help.filter, 256)
+    imgui.InputTextWithHint("##help_filter", u8("Поиск команды..."),
+                            MODULE.Help.filter, 256)
     imgui.Separator()
 
     local filter = u8:decode(ffi.string(MODULE.Help.filter)):lower()
@@ -13688,7 +13707,8 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
         for _, cmd in ipairs(commands) do
             local cmd_lower = cmd.cmd:lower()
             local desc_lower = cmd.desc:lower()
-            if filter == "" or cmd_lower:find(filter, 1, true) or desc_lower:find(filter, 1, true) then
+            if filter == "" or cmd_lower:find(filter, 1, true) or
+                desc_lower:find(filter, 1, true) then
                 matched = matched + 1
                 imgui.Columns(2)
                 imgui.SetColumnWidth(0, 200 * settings.general.custom_dpi)
@@ -13702,13 +13722,17 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
 
         if filter ~= "" then
             imgui.Separator()
-            imgui.Text(u8("Найдено команд: " .. matched .. " из " .. total_commands))
+            imgui.Text(u8(
+                           "Найдено команд: " .. matched ..
+                               " из " .. total_commands))
         end
         imgui.EndChild()
     end
 
     -- Кнопка закрытия
-    if imgui.Button(fa.CIRCLE_XMARK .. u8(" Закрыть"), imgui.ImVec2(imgui.GetMiddleButtonX(1), 25 * settings.general.custom_dpi)) then
+    if imgui.Button(fa.CIRCLE_XMARK .. u8(" Закрыть"), imgui.ImVec2(
+                        imgui.GetMiddleButtonX(1),
+                        25 * settings.general.custom_dpi)) then
         MODULE.Help.Window[0] = false
     end
 
@@ -13726,23 +13750,22 @@ function isAnyHelperWindowOpen()
                MODULE.FastMenu.Window[0] or MODULE.LeaderFastMenu.Window[0] or
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
                MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
-               MODULE.Initial.Window[0] or MODULE.ClearList.Window[0] or MODULE.Help.Window[0]
+               MODULE.Initial.Window[0] or MODULE.ClearList.Window[0] or
+               MODULE.Help.Window[0]
 end
 
 -- Функция /time+F8
 function print_scr_time()
-	lua_thread.create(function()
-		sampSendChat('/time')
-		wait(100)
-		setVirtualKeyDown(119, true)
-		wait(25)
-		setVirtualKeyDown(119, false)
-	end)
+    lua_thread.create(function()
+        sampSendChat('/time')
+        wait(100)
+        setVirtualKeyDown(119, true)
+        wait(25)
+        setVirtualKeyDown(119, false)
+    end)
 end
 
-function stripColorCodes(str)
-    return str:gsub("{[^}]+}", "")
-end
+function stripColorCodes(str) return str:gsub("{[^}]+}", "") end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
     local rBool = false
