@@ -50,6 +50,7 @@ local effil = require('effil')
 local imgui = require('mimgui')
 local fa = require('fAwesome6_solid')
 local sampev = require('samp.events')
+local ffi = require 'ffi'
 local dkok, dkjson = pcall(require, "dkjson")
 local vkeys_no_errors, vkeys = pcall(require, 'vkeys')
 local monet_no_errors, moon_monet = pcall(require, 'MoonMonet')
@@ -59,6 +60,48 @@ local pie_no_errors, pie = pcall(require, IS_MOBILE and 'imgui_piemenu' or
 local sizeX, sizeY = getScreenResolution()
 local script_tag = '[Prison Helper]'
 print('Библиотеки успешно подключены!')
+ffi.cdef [[
+	typedef int BOOL;
+	typedef unsigned long HANDLE;
+	typedef HANDLE HWND;
+	typedef const char* LPCSTR;
+	typedef unsigned UINT;
+	
+	void* __stdcall ShellExecuteA(void* hwnd, const char* op, const char* file, const char* params, const char* dir, int show_cmd);
+	uint32_t __stdcall CoInitializeEx(void*, uint32_t);
+	
+	BOOL ShowWindow(HWND hWnd, int  nCmdShow);
+	HWND GetActiveWindow();
+	
+	
+	int MessageBoxA(
+	  HWND   hWnd,
+	  LPCSTR lpText,
+	  LPCSTR lpCaption,
+	  UINT   uType
+	);
+	
+	short GetKeyState(int nVirtKey);
+	bool GetKeyboardLayoutNameA(char* pwszKLID);
+	int GetLocaleInfoA(int Locale, int LCType, char* lpLCData, int cchData);
+]]
+
+font = renderCreateFont('Trebuchet MS', 14, 5)
+fontPD = renderCreateFont('Trebuchet MS', 12, 5)
+font_flood = renderCreateFont('Trebuchet MS', 10, 5)
+font_metka = renderCreateFont('Trebuchet MS', 9, 5)
+local sx, sy = getScreenResolution()
+
+local BuffSize = 32
+local KeyboardLayoutName = ffi.new('char[?]', BuffSize)
+local LocalInfo = ffi.new('char[?]', BuffSize)
+local month = {
+    'Января', 'Февраля', 'Марта', 'Апреля', 'Мая',
+    'Июня', 'Июля', 'Августа', 'Сентября',
+    'Октября', 'Ноября', 'Декабря'
+}
+math.randomseed(os.time())
+scene_active = false
 -------------------------------------------- JSON SETTINGS ---------------------------------------
 local config_dir = worked_dir .. '/Prison Helper'
 local settings = {}
@@ -113,7 +156,9 @@ local default_settings = {
         post_menu = {x = sizeX / 2, y = sizeY / 2},
         mobile_fastmenu_button = {x = sizeX / 8.5, y = sizeY / 2.3},
         taser = {x = sizeX / 4.2, y = sizeY / 2.1}
-    }
+    },
+    time_hud = false,
+    display_map_distance = {user = false, server = false}
 }
 function encode_table(array)
     if dkok then
@@ -277,16 +322,14 @@ local modules = {
                         text = '/me взглянул{sex} на часы с гравировкой Prison Helper и посмотрел{sex} время&/time&/do На часах видно время {get_time}.',
                         arg = '',
                         enable = true,
-                        waiting = '2',
-                        bind = "{}"
+                        waiting = '2'
                     }, {
                         cmd = 'cure',
                         description = 'Поднять игрока из стадии',
                         text = '/me наклоняется над человеком, и прощупывает его пульс на сонной артерии&/cure {arg_id}&/do Пульс отсутствует.&/me начинает делать человеку непрямой массаж сердца, время от времени проверяя пульс&/do Спустя несколько минут сердце человека начало биться.&/do Человек пришел в сознание.&/todo Отлично*улыбаясь',
                         arg = '{arg_id}',
                         enable = true,
-                        waiting = '2',
-                        bind = "{}"
+                        waiting = '2'
                     }, -- Армия
                     {
                         cmd = 'pas',
@@ -295,8 +338,7 @@ local modules = {
                         arg = '',
                         enable = true,
                         waiting = '2',
-                        in_fastmenu = true,
-                        bind = {}
+                        in_fastmenu = true
                     }, {
                         cmd = 'agenda',
                         description = 'Выдача повестки игроку',
@@ -304,7 +346,6 @@ local modules = {
                         arg = '{arg_id}',
                         enable = true,
                         waiting = '2',
-                        bind = "{}",
                         in_fastmenu = true
                     }, {
                         cmd = 'siren',
@@ -312,8 +353,7 @@ local modules = {
                         text = '{switchCarSiren}',
                         arg = '',
                         enable = true,
-                        waiting = '2',
-                        bind = "{}"
+                        waiting = '2'
                     }, -- Тюрьма
                     {
                         cmd = 't',
@@ -321,8 +361,7 @@ local modules = {
                         text = '/taser',
                         arg = '',
                         enable = true,
-                        waiting = '2',
-                        bind = {}
+                        waiting = '2'
                     }, {
                         cmd = 'cuff',
                         description = 'Надеть наручники',
@@ -369,16 +408,14 @@ local modules = {
                         text = '/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки включил{sex} боди камеру.&/do Скрытая боди камера включена и снимает всё происходящее.&/time',
                         arg = '',
                         enable = true,
-                        waiting = '3.5',
-                        bind = {}
+                        waiting = '3.5'
                     }, {
                         cmd = 'camoff',
                         description = 'Выключить cкрытую боди камеру',
                         text = '/time&/do К форме прикреплена скрытая боди камера.&/me незаметным движением руки выключил{sex} боди камеру.&/do Скрытая боди камера выключена и больше не снимает всё происходящее.',
                         arg = '',
                         enable = true,
-                        waiting = '3.5',
-                        bind = {}
+                        waiting = '3.5'
                     }
                 }
             },
@@ -386,6 +423,14 @@ local modules = {
             commands_senior_staff = {
                 my = {
                     {
+                        cmd = 'giveplatoon',
+                        description = 'Назначить взвод игроку',
+                        text = '{give_platoon}',
+                        arg = '{arg_id}',
+                        enable = true,
+                        waiting = '2',
+                        in_fastmenu = false
+                    }, {
                         cmd = 'take',
                         description = 'Изьять предметы у игрока (6+)',
                         text = '/do В подсумке находиться небольшой зип-пакет.&/me достаёт из подсумка зип-пакет и отрывает его&/me кладёт в зип-пакет изъятые предметы задержанного человека&/take {arg_id}&/do Изъятые предметы в зип-пакете.&/todo Отлично*убирая зип-пакет в подсумок',
@@ -1335,7 +1380,6 @@ local MODULE = {
     LeadTools = {
         auto_uninvite = {checker = false, msg1 = '', msg2 = '', msg3 = ''},
         spawncar = false,
-        platoon = {check = false, player_id = nil},
         cleaner = {
             day_afk = 0,
             reason_day = 0,
@@ -1344,6 +1388,7 @@ local MODULE = {
         },
         sell_rank = {checker = false, player_id = nil}
     },
+    ManageTools = {platoon = {check = false, player_id = nil}},
     -- others
     Update = {
         Window = imgui.new.bool(),
@@ -1411,13 +1456,13 @@ local MODULE = {
         mark = 'ADAM'
     },
     ClearList = {
-    Window = imgui.new.bool(),
-    page = imgui.new.int(0),
-    itemsPerPage = 20,
-    edit_index = -1,
-    edit_buffer = imgui.new.char[256](''),
-    edit_window = imgui.new.bool(false)  -- новое поле
-},
+        Window = imgui.new.bool(),
+        page = imgui.new.int(0),
+        itemsPerPage = 20,
+        edit_index = -1,
+        edit_buffer = imgui.new.char[256](''),
+        edit_window = imgui.new.bool(false) -- новое поле
+    },
     Help = {
         Window = imgui.new.bool(),
         filter = imgui.new.char[256]('') -- поле для ввода поиска
@@ -3316,6 +3361,13 @@ function main()
             end
         end
 
+        if settings.time_hud or settings.display_map_distance.user or
+            settings.display_map_distance.server then
+            if not isPauseMenuActive() and not isGamePaused() and
+                not scene_active then
+                time_hud_func_and_distance_point()
+            end
+        end
     end
 
 end
@@ -3576,15 +3628,15 @@ function register_command(chat_cmd, cmd_arg, cmd_text, cmd_waiting)
                             elseif line == '{show_ant_menu}' then
                             elseif line == '{give_platoon}' then
                                 if cmd_arg == '{arg_id}' then
-                                    MODULE.LeadTools.platoon.player_id = arg
+                                    MODULE.ManageTools.platoon.player_id = arg
                                 elseif cmd_arg == '{arg_id} {arg2}' then
                                     local arg_id, arg2 = arg:match('(%d+) (.+)')
                                     if arg_id and arg2 and isParamSampID(arg_id) then
-                                        MODULE.LeadTools.platoon.player_id =
+                                        MODULE.ManageTools.platoon.player_id =
                                             arg_id
                                     end
                                 end
-                                MODULE.LeadTools.platoon.check = true
+                                MODULE.ManageTools.platoon.check = true
                                 sampSendChat("/platoon")
                                 break
                             elseif line == '{show_rank_menu}' then
@@ -6736,8 +6788,7 @@ function sampev.onServerMessage(color, text)
                            message_color)
         playNotifySound()
         show_arz_notify('info', 'Prison Helper',
-                    "Вас кто-то упомянул в чате!",
-                    5000)
+                        "Вас кто-то упомянул в чате!", 5000)
     end
 
     if settings.md.auto_doklad_post then
@@ -6838,7 +6889,7 @@ function sampev.onServerMessage(color, text)
     end
 
     if (settings.md.auto_mask) then
-        if text:find(
+        if text:match(
             'Время действия маски истекло, вам пришлось ее выбросить.') then
             sampAddChatMessage(script_tag ..
                                    ' {ffffff}Время действия маски истекло, автоматически надеваю новую',
@@ -6852,7 +6903,7 @@ function sampev.onServerMessage(color, text)
             sampAddChatMessage(script_tag ..
                                    ' {ffffff}Время действия маски ' ..
                                    min ..
-                                   ' минут, после исхода времени автоматически надеву новую!',
+                                   ' минут, после исхода времени автоматически одену новую!',
                                message_color)
             return false
         end
@@ -6991,9 +7042,7 @@ function sampev.onSendCommand(text)
     end
 
     if settings.player_info.rp_chat then
-        local chats = {
-            '/s', '/r', '/f', '/m', '/do'
-        }
+        local chats = {'/s', '/r', '/f', '/m', '/do'}
         for _, cmd in ipairs(chats) do
             if text:find('^' .. cmd .. ' ') then
                 local cmd_text = text:match('^' .. cmd .. ' (.+)')
@@ -7274,6 +7323,66 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         return false
     end
 
+    -- ========================================================
+    --  БЛОК ДЛЯ ВЗВОДА (доступен для рангов 5+)
+    -- ========================================================
+    if settings.player_info.fraction_rank_number >= 5 and
+        MODULE.ManageTools.platoon.check then
+        -- 1. Диалог выбора взвода
+        if title:find('Управление взводом') then
+            local lines = {}
+            for line in text:gmatch('[^\r\n]+') do
+                table.insert(lines, line)
+            end
+            local selected_index = -1
+            for i, line in ipairs(lines) do
+                local clean_line = line:gsub("{[%x%a]+}", ""):gsub("%s+", " ")
+                                       :gsub("^%s+", ""):gsub("%s+$", "")
+                if clean_line:find("%[Вы тут%]") then
+                    selected_index = i - 2
+                    break
+                end
+            end
+            if selected_index >= 0 then
+                sampSendDialogResponse(dialogid, 1, selected_index, "")
+                return false
+            end
+        end
+
+        -- 2. Диалог с пунктом "Назначить взвод игроку"
+        if text:find('Назначить взвод игроку') then
+            local lines = {}
+            for line in text:gmatch('[^\r\n]+') do
+                table.insert(lines, line)
+            end
+            local selected_index = -1
+            for i, line in ipairs(lines) do
+                local clean_line = line:gsub("{[%x%a]+}", ""):gsub("%s+", " ")
+                                       :gsub("^%s+", ""):gsub("%s+$", "")
+                if clean_line:find("Назначить взвод игроку") then
+                    selected_index = i - 1
+                    break
+                end
+            end
+            if selected_index >= 0 then
+                -- Пробуем нажать "Выдать" (левая кнопка)
+                sampSendDialogResponse(dialogid, 1, selected_index, "")
+                return false
+            end
+        end
+
+        -- 3. Диалог ввода ID игрока (возможно, появляется после)
+        if text:find('Введите') and text:find('ID') then
+            sampSendDialogResponse(dialogid, 1, 0,
+                                   MODULE.ManageTools.platoon.player_id)
+            MODULE.ManageTools.platoon.check = false
+            return false
+        end
+    end
+
+    -- ========================================================
+    --  ЛИДЕРСКИЕ ФУНКЦИИ (9/10)
+    -- ========================================================
     if settings.player_info.fraction_rank_number >= 9 then
         if title:find('Выберите ранг для (.+)') and
             text:find('вакансий') then -- invite
@@ -7291,20 +7400,6 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 else
                     count = count + 1
                 end
-            end
-        end
-        if (MODULE.LeadTools.platoon.check) then
-            if text:find('Назначить взвод игроку') and
-                text:find('Участники взвода') then
-                sampSendDialogResponse(dialogid, 1, 3, 0)
-                return false
-            end
-            if text:find(
-                '{FFFFFF}Введите {FB8654}ID{FFFFFF} игрока, которого хотите назначить') then
-                sampSendDialogResponse(dialogid, 1, 0,
-                                       MODULE.LeadTools.platoon.player_id)
-                MODULE.LeadTools.platoon.check = false
-                return false
             end
         end
         if (MODULE.LeadTools.cleaner.uninvite) then
@@ -7460,6 +7555,7 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         -- умный срок
     end
 end
+
 function sampev.onCreate3DText(id, color, position, distance, testLOS,
                                attachedPlayerId, attachedVehicleId, text_3d)
     if MODULE.DEBUG then end
@@ -11268,6 +11364,15 @@ function render_fractions_functions()
         render_assist_item("Режим авто-маски",
                            "Автоматически продливает маску",
                            settings.md, "auto_mask")
+        render_assist_item("Время и дата на экране",
+                           "Отображать дату и время под миникартой",
+                           settings, "time_hud")
+        render_assist_item("Чекпоинт: расстояние",
+                           "Отображать под миникартой расстояние до серверной метки",
+                           settings.display_map_distance, "server")
+        render_assist_item("Метка: расстояние",
+                           "Отображать под миникартой расстояние до пользовательской метки",
+                           settings.display_map_distance, "user")
         if not isMode('none') then
             -- Убраны isVip
             render_assist_item("Обновление списка /mb",
@@ -11438,7 +11543,8 @@ if not (isMode('ghetto') or isMode('mafia')) then
     imgui.OnFrame(function() return MODULE.Sobes.Window[0] end, function(player)
         if player_id ~= nil and isParamSampID(player_id) then
             imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
-                       imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+                                   imgui.Cond.FirstUseEver,
+                                   imgui.ImVec2(0.5, 0.5))
             imgui.Begin(fa.PERSON_CIRCLE_CHECK ..
                             u8 ' Проведение собеседования игроку ' ..
                             u8(sampGetPlayerNickname(player_id)) .. ' ' ..
@@ -11988,91 +12094,134 @@ if not (isMode('ghetto') or isMode('mafia')) then
         end
         imgui.End()
     end)
-    imgui.OnFrame(
-		function() return MODULE.Post.Window[0] end,
-		function(player)
-			imgui.SetNextWindowPos(imgui.ImVec2(settings.windows_pos.patrool_menu.x, settings.windows_pos.patrool_menu.y), imgui.Cond.FirstUseEver)
-			imgui.Begin(getHelperIcon() .. u8" Prison Helper " .. getHelperIcon() .. '##post_info_menu', MODULE.Post.Window, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.AlwaysAutoResize )
-			change_dpi()
-			safery_disable_cursor(player)
-			if MODULE.Post.active then
-				imgui.Text(fa.MAP_LOCATION_DOT .. u8(' Пост: ') .. u8(MODULE.Binder.tags.get_post_name()))
-				imgui.Text(fa.CLOCK .. u8(' Время на посту: ') .. u8(MODULE.Binder.tags.get_post_time()))
-				imgui.Text(fa.CIRCLE_INFO .. u8(' Состояние: ') .. u8(MODULE.Binder.tags.get_post_code()))
-				imgui.SameLine()
-				if imgui.SmallButton(fa.GEAR) then
-					imgui.OpenPopup(fa.BUILDING_SHIELD .. u8(' Prison Helper##post_select_code'))
-				end
-				imgui.Separator()
-				if imgui.Button(fa.WALKIE_TALKIE .. u8(' Доклад##post'), imgui.ImVec2(100 * settings.general.custom_dpi, 25 * settings.general.custom_dpi)) then
-					if (not MODULE.Post.process_doklad) then
-						MODULE.Post.process_doklad = true
-						lua_thread.create(function()
-							MODULE.Binder.state.isActive = true
-							sampSendChat('/r Докладывает ' .. MODULE.Binder.tags.my_doklad_nick() .. '. Пост: ' .. MODULE.Binder.tags.get_post_name() .. ', состояние ' .. MODULE.Binder.tags.get_post_code())
-							wait(1500)
-							sampSendChat('/r Нахожусь на посту уже ' .. MODULE.Binder.tags.get_post_format_time())
-							MODULE.Binder.state.isActive = false
-							MODULE.Post.process_doklad = false
-						end)
-					end
-				end	
-				imgui.SameLine()
-				if imgui.Button(fa.CIRCLE_STOP .. u8(' Конец##post'), imgui.ImVec2(100 * settings.general.custom_dpi, 25 * settings.general.custom_dpi)) then
-					lua_thread.create(function()
-						MODULE.Post.Window[0] = false
-						MODULE.Post.active = false
-						MODULE.Binder.state.isActive = true
-						sampSendChat('/r ' .. MODULE.Binder.tags.my_doklad_nick() .. ' на CONTROL. Пост: ' .. MODULE.Binder.tags.get_post_name() .. ', состояние ' .. MODULE.Binder.tags.get_post_code() .. '.')
-						wait(1500)
-						sampSendChat('/r Освобождаю пост! Простоял' .. MODULE.Binder.tags.sex() .. ' на посту: ' .. MODULE.Binder.tags.get_post_format_time() .. '.', -1)
-						MODULE.Binder.state.isActive = false
-						MODULE.Post.time = 0
-						MODULE.Post.start_time = 0
-						MODULE.Post.current_time = 0
-						MODULE.Post.code = 'CODE4'
-						MODULE.Post.ComboCode[0] = 5
-					end)
-				end
-			else
-				player.HideCursor = false
-				imgui.PushItemWidth(200 * settings.general.custom_dpi)
-				if imgui.InputTextWithHint(u8'##post_name', u8('Укажите название вашего поста'), MODULE.Post.input, 256) then
-					MODULE.Post.name = u8:decode(ffi.string(MODULE.Post.input))
-				end
-				imgui.Separator()
-				if imgui.Button(fa.CIRCLE_XMARK .. u8' Отмена##post', imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 * settings.general.custom_dpi)) then
-					MODULE.Post.Window[0] = false
-				end
-				imgui.SameLine()
-				if imgui.Button(fa.WALKIE_TALKIE .. u8' Заступить##post', imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 * settings.general.custom_dpi)) then
-					MODULE.Post.time = 0
-					MODULE.Post.start_time = os.time()
-					MODULE.Post.active = true
-					MODULE.Binder.state.isActive = true
-					sampSendChat('/r Докладывает ' .. MODULE.Binder.tags.my_doklad_nick() .. '. Заступаю на пост ' .. MODULE.Binder.tags.get_post_name() .. ', состояние ' .. MODULE.Binder.tags.get_post_code() .. '.')
-					MODULE.Binder.state.isActive = false
-					imgui.CloseCurrentPopup()
-				end
-			end
-			if imgui.BeginPopup(fa.BUILDING_SHIELD .. u8(' Prison Helper##post_select_code'), _, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize  ) then
-				change_dpi()
-				player.HideCursor = false 
-				imgui.PushItemWidth(150 * settings.general.custom_dpi)
-				if imgui.Combo('##post_code', MODULE.Post.ComboCode, MODULE.Post.ImItemsCode, #MODULE.Post.codes) then
-					MODULE.Post.code = MODULE.Post.codes[MODULE.Post.ComboCode[0] + 1]
-					imgui.CloseCurrentPopup()
-				end
-				imgui.EndPopup()
-			end
-			local posX, posY = imgui.GetWindowPos().x, imgui.GetWindowPos().y
-			if posX ~= settings.windows_pos.post_menu.x or posY ~= settings.windows_pos.post_menu.y then
-				settings.windows_pos.post_menu = {x = posX, y = posY}
-				save_settings()
-			end
-			imgui.End()
-		end
-	)
+    imgui.OnFrame(function() return MODULE.Post.Window[0] end, function(player)
+        imgui.SetNextWindowPos(
+            imgui.ImVec2(settings.windows_pos.patrool_menu.x,
+                         settings.windows_pos.patrool_menu.y),
+            imgui.Cond.FirstUseEver)
+        imgui.Begin(
+            getHelperIcon() .. u8 " Prison Helper " .. getHelperIcon() ..
+                '##post_info_menu', MODULE.Post.Window,
+            imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+                imgui.WindowFlags.AlwaysAutoResize)
+        change_dpi()
+        safery_disable_cursor(player)
+        if MODULE.Post.active then
+            imgui.Text(fa.MAP_LOCATION_DOT .. u8(' Пост: ') ..
+                           u8(MODULE.Binder.tags.get_post_name()))
+            imgui.Text(fa.CLOCK .. u8(' Время на посту: ') ..
+                           u8(MODULE.Binder.tags.get_post_time()))
+            imgui.Text(fa.CIRCLE_INFO .. u8(' Состояние: ') ..
+                           u8(MODULE.Binder.tags.get_post_code()))
+            imgui.SameLine()
+            if imgui.SmallButton(fa.GEAR) then
+                imgui.OpenPopup(fa.BUILDING_SHIELD ..
+                                    u8(' Prison Helper##post_select_code'))
+            end
+            imgui.Separator()
+            if imgui.Button(fa.WALKIE_TALKIE .. u8(' Доклад##post'),
+                            imgui.ImVec2(100 * settings.general.custom_dpi,
+                                         25 * settings.general.custom_dpi)) then
+                if (not MODULE.Post.process_doklad) then
+                    MODULE.Post.process_doklad = true
+                    lua_thread.create(function()
+                        MODULE.Binder.state.isActive = true
+                        sampSendChat('/r Докладывает ' ..
+                                         MODULE.Binder.tags.my_doklad_nick() ..
+                                         '. Пост: ' ..
+                                         MODULE.Binder.tags.get_post_name() ..
+                                         ', состояние ' ..
+                                         MODULE.Binder.tags.get_post_code())
+                        wait(1500)
+                        sampSendChat(
+                            '/r Нахожусь на посту уже ' ..
+                                MODULE.Binder.tags.get_post_format_time())
+                        MODULE.Binder.state.isActive = false
+                        MODULE.Post.process_doklad = false
+                    end)
+                end
+            end
+            imgui.SameLine()
+            if imgui.Button(fa.CIRCLE_STOP .. u8(' Конец##post'),
+                            imgui.ImVec2(100 * settings.general.custom_dpi,
+                                         25 * settings.general.custom_dpi)) then
+                lua_thread.create(function()
+                    MODULE.Post.Window[0] = false
+                    MODULE.Post.active = false
+                    MODULE.Binder.state.isActive = true
+                    sampSendChat('/r ' .. MODULE.Binder.tags.my_doklad_nick() ..
+                                     ' на CONTROL. Пост: ' ..
+                                     MODULE.Binder.tags.get_post_name() ..
+                                     ', состояние ' ..
+                                     MODULE.Binder.tags.get_post_code() .. '.')
+                    wait(1500)
+                    sampSendChat(
+                        '/r Освобождаю пост! Простоял' ..
+                            MODULE.Binder.tags.sex() .. ' на посту: ' ..
+                            MODULE.Binder.tags.get_post_format_time() .. '.', -1)
+                    MODULE.Binder.state.isActive = false
+                    MODULE.Post.time = 0
+                    MODULE.Post.start_time = 0
+                    MODULE.Post.current_time = 0
+                    MODULE.Post.code = 'CODE4'
+                    MODULE.Post.ComboCode[0] = 5
+                end)
+            end
+        else
+            player.HideCursor = false
+            imgui.PushItemWidth(200 * settings.general.custom_dpi)
+            if imgui.InputTextWithHint(u8 '##post_name', u8(
+                                           'Укажите название вашего поста'),
+                                       MODULE.Post.input, 256) then
+                MODULE.Post.name = u8:decode(ffi.string(MODULE.Post.input))
+            end
+            imgui.Separator()
+            if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена##post',
+                            imgui.ImVec2(imgui.GetMiddleButtonX(2),
+                                         25 * settings.general.custom_dpi)) then
+                MODULE.Post.Window[0] = false
+            end
+            imgui.SameLine()
+            if imgui.Button(fa.WALKIE_TALKIE .. u8 ' Заступить##post',
+                            imgui.ImVec2(imgui.GetMiddleButtonX(2),
+                                         25 * settings.general.custom_dpi)) then
+                MODULE.Post.time = 0
+                MODULE.Post.start_time = os.time()
+                MODULE.Post.active = true
+                MODULE.Binder.state.isActive = true
+                sampSendChat('/r Докладывает ' ..
+                                 MODULE.Binder.tags.my_doklad_nick() ..
+                                 '. Заступаю на пост ' ..
+                                 MODULE.Binder.tags.get_post_name() ..
+                                 ', состояние ' ..
+                                 MODULE.Binder.tags.get_post_code() .. '.')
+                MODULE.Binder.state.isActive = false
+                imgui.CloseCurrentPopup()
+            end
+        end
+        if imgui.BeginPopup(fa.BUILDING_SHIELD ..
+                                u8(' Prison Helper##post_select_code'), _,
+                            imgui.WindowFlags.NoCollapse +
+                                imgui.WindowFlags.NoResize) then
+            change_dpi()
+            player.HideCursor = false
+            imgui.PushItemWidth(150 * settings.general.custom_dpi)
+            if imgui.Combo('##post_code', MODULE.Post.ComboCode,
+                           MODULE.Post.ImItemsCode, #MODULE.Post.codes) then
+                MODULE.Post.code = MODULE.Post.codes[MODULE.Post.ComboCode[0] +
+                                       1]
+                imgui.CloseCurrentPopup()
+            end
+            imgui.EndPopup()
+        end
+        local posX, posY = imgui.GetWindowPos().x, imgui.GetWindowPos().y
+        if posX ~= settings.windows_pos.post_menu.x or posY ~=
+            settings.windows_pos.post_menu.y then
+            settings.windows_pos.post_menu = {x = posX, y = posY}
+            save_settings()
+        end
+        imgui.End()
+    end)
 end
 if isMode('prison') then
     imgui.OnFrame(function() return MODULE.Taser.Window[0] end, function(player)
@@ -13525,9 +13674,10 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
     imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi,
                                          500 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
-    imgui.Begin(fa.LIST .. u8 " Список фильтруемых строк " .. fa.LIST,
-                MODULE.ClearList.Window,
-                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
+    imgui.Begin(
+        fa.LIST .. u8 " Список фильтруемых строк " ..
+            fa.LIST, MODULE.ClearList.Window,
+        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
     change_dpi()
 
     local data = modules.clear.data
@@ -13547,7 +13697,8 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
         imgui.CenterText(u8 "Список пуст")
     else
         local pageInfo = string.format("Стр. %d/%d (%d-%d из %d)",
-                                       page + 1, maxPage + 1, startIdx, endIdx, total)
+                                       page + 1, maxPage + 1, startIdx, endIdx,
+                                       total)
         imgui.Text(u8(pageInfo))
         imgui.Separator()
 
@@ -13571,7 +13722,8 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
                     table.remove(data, i)
                     save_module('clear')
                     local new_total = #data
-                    local new_maxPage = math.max(0, math.ceil(new_total / perPage) - 1)
+                    local new_maxPage = math.max(0, math.ceil(
+                                                     new_total / perPage) - 1)
                     if MODULE.ClearList.page[0] > new_maxPage then
                         MODULE.ClearList.page[0] = new_maxPage
                     end
@@ -13590,7 +13742,9 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
         imgui.SetNextWindowSize(imgui.ImVec2(450 * settings.general.custom_dpi,
                                              150 * settings.general.custom_dpi),
                                 imgui.Cond.Appearing)
-        if imgui.Begin(fa.PEN_TO_SQUARE .. u8 " Редактирование строки", MODULE.ClearList.edit_window,
+        if imgui.Begin(fa.PEN_TO_SQUARE ..
+                           u8 " Редактирование строки",
+                       MODULE.ClearList.edit_window,
                        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                            imgui.WindowFlags.AlwaysAutoResize) then
             change_dpi()
@@ -13605,7 +13759,8 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
             imgui.SameLine()
             if imgui.Button(fa.FLOPPY_DISK .. u8(" Сохранить"),
                             imgui.ImVec2(200 * settings.general.custom_dpi, 0)) then
-                local new_text = u8:decode(ffi.string(MODULE.ClearList.edit_buffer))
+                local new_text = u8:decode(
+                                     ffi.string(MODULE.ClearList.edit_buffer))
                 if new_text ~= "" then
                     local idx = MODULE.ClearList.edit_index
                     if idx >= 1 and idx <= #data then
@@ -13614,10 +13769,14 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
                         MODULE.ClearList.edit_window[0] = false
                         MODULE.ClearList.edit_index = -1
                     else
-                        sampAddChatMessage(script_tag .. " {ffffff}Ошибка: индекс строки недействителен", message_color)
+                        sampAddChatMessage(script_tag ..
+                                               " {ffffff}Ошибка: индекс строки недействителен",
+                                           message_color)
                     end
                 else
-                    sampAddChatMessage(script_tag .. " {ffffff}Строка не может быть пустой!", message_color)
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Строка не может быть пустой!",
+                                       message_color)
                 end
             end
             imgui.End()
@@ -13766,6 +13925,115 @@ function print_scr_time()
 end
 
 function stripColorCodes(str) return str:gsub("{[^}]+}", "") end
+
+function time_hud_func_and_distance_point()
+    local text_dist_user_point = ''
+    local text_dist_server_point = ''
+    local my_int = getActiveInterior()
+    local bool_result_server, pos_X_s, pos_Y_s, pos_Z_s =
+        getTargetServerCoordinates()
+    local distance_end_serv = -2
+    local bias = 0
+
+    if settings.time_hud then
+        local success = ffi.C.GetKeyboardLayoutNameA(KeyboardLayoutName)
+        local errorCode = ffi.C.GetLocaleInfoA(
+                              tonumber(ffi.string(KeyboardLayoutName), 16),
+                              0x00000002, LocalInfo, BuffSize)
+        local localName = ffi.string(LocalInfo)
+        local capsState = ffi.C.GetKeyState(20)
+        local function lang()
+            local str = string.match(localName, '([^%(]*)')
+            if str:find('Русский') then
+                return 'Ru'
+            elseif str:find('Английский') then
+                return 'En'
+            end
+        end
+        local text = string.format('%s | {ffeeaa}%s{ffffff} %s',
+                                   os.date('%d ') ..
+                                       month[tonumber(os.date('%m'))] ..
+                                       os.date(' - %H:%M:%S'), lang(),
+                                   getStrByState2(capsState))
+        bias = renderGetFontDrawTextLength(fontPD, text) + 10
+        renderFontDrawText(fontPD, text, 20, sy - 25, 0xFFFFFFFF)
+    end
+
+    if settings.display_map_distance.server and my_int == 0 then
+        if bool_result_server then
+            local x_player, y_player, z_player = getCharCoordinates(PLAYER_PED)
+            distance_end_serv = getDistanceBetweenCoords3d(pos_X_s, pos_Y_s,
+                                                           pos_Z_s, x_player,
+                                                           y_player, z_player)
+            text_dist_server_point = tostring(removeDecimalPart(
+                                                  distance_end_serv) ..
+                                                  ' м. до серв. метки')
+            renderFontDrawText(font_metka, text_dist_server_point, 20 + bias,
+                               sy - 20, 0xFFFFFFFF)
+        end
+    end
+
+    if settings.display_map_distance.user and my_int == 0 then
+        local bool_result, pos_X, pos_Y, pos_Z = getTargetBlipCoordinates()
+        if bool_result then
+            local x_player, y_player, z_player = getCharCoordinates(PLAYER_PED)
+            local distance_end = getDistanceBetweenCoords3d(pos_X, pos_Y, pos_Z,
+                                                            x_player, y_player,
+                                                            z_player)
+            text_dist_user_point = tostring(
+                                       removeDecimalPart(distance_end) ..
+                                           ' м. до вашей метки')
+            local y_bias = 0
+            if settings.display_map_distance.server and my_int == 0 and
+                bool_result_server then y_bias = -18 end
+            if bool_result_server then
+                if math.abs(distance_end_serv - distance_end) > 3 then
+                    renderFontDrawText(font_metka, text_dist_user_point,
+                                       20 + bias, sy - 20 + y_bias, 0xFFFFFFFF)
+                end
+            else
+                renderFontDrawText(font_metka, text_dist_user_point, 20 + bias,
+                                   sy - 20 + y_bias, 0xFFFFFFFF)
+            end
+        end
+    end
+end
+
+function getTargetServerCoordinates()
+    local pos_cord = {x = 0.0, y = 0.0, z = 0.0}
+    local target_server = false
+    for id = 0, 31 do
+        local object_truct = 0xC7F168 + id * 56
+        local object_truct_pos = {
+            x = representIntAsFloat(readMemory(object_truct + 0, 4, false)),
+            y = representIntAsFloat(readMemory(object_truct + 4, 4, false)),
+            z = representIntAsFloat(readMemory(object_truct + 8, 4, false))
+        }
+        if object_truct_pos.x ~= 0.0 or object_truct_pos.y ~= 0.0 or
+            object_truct_pos.z ~= 0.0 then
+            pos_cord = {
+                x = object_truct_pos.x,
+                y = object_truct_pos.y,
+                z = object_truct_pos.z
+            }
+            target_server = true
+        end
+    end
+
+    return target_server, pos_cord.x, pos_cord.y, pos_cord.z
+end
+
+function getStrByState2(keyState)
+    if keyState == 0 then return '' end
+    return '{F55353}Caps{ffffff}'
+end
+
+function removeDecimalPart(value)
+    local dotPosition = string.find(value, '%.')
+    if not dotPosition then return value end
+
+    return string.sub(value, 1, dotPosition - 1)
+end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
     local rBool = false
