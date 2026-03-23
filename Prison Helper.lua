@@ -190,7 +190,8 @@ function load_settings()
     if not doesDirectoryExist(config_dir) then createDirectory(config_dir) end
     if not doesFileExist(config_dir .. "/Settings.json") then
         settings = default_settings
-        print('Файл с настройками не найден, использую стандартные настройки!')
+        print(
+            'Файл с настройками не найден, использую стандартные настройки!')
     else
         local file = io.open(config_dir .. "/Settings.json", 'r')
         if file then
@@ -199,13 +200,15 @@ function load_settings()
             local trimmed = contents:match("^%s*(.-)%s*$")
             if trimmed == "" then
                 settings = default_settings
-                print('Файл с настройками пуст, использую стандартные настройки!')
+                print(
+                    'Файл с настройками пуст, использую стандартные настройки!')
             else
                 local result, loaded = pcall(decodeJson, trimmed)
                 if result then
                     settings = loaded
                     if settings.general.version ~= thisScript().version then
-                        print('Новая версия, сброс настроек!')
+                        print(
+                            'Новая версия, сброс настроек!')
                         local fraction_mode = settings.general.fraction_mode
                         local player_info = settings.player_info
                         local key = settings.general.key
@@ -217,16 +220,19 @@ function load_settings()
                         reload_script = true
                         thisScript():reload()
                     else
-                        print('Настройки успешно загружены!')
+                        print(
+                            'Настройки успешно загружены!')
                     end
                 else
                     settings = default_settings
-                    print('Не удалось открыть файл с настройками, использую стандартные настройки!')
+                    print(
+                        'Не удалось открыть файл с настройками, использую стандартные настройки!')
                 end
             end
         else
             settings = default_settings
-            print('Не удалось открыть файл с настройками, использую стандартные настройки!')
+            print(
+                'Не удалось открыть файл с настройками, использую стандартные настройки!')
         end
     end
 end
@@ -238,13 +244,9 @@ local function safeDecodeJson(str)
         -- уже таблица — возвращаем как есть
         return str
     end
-    if type(str) ~= "string" or str == "" then
-        return {}
-    end
+    if type(str) ~= "string" or str == "" then return {} end
     local trimmed = str:match("^%s*(.-)%s*$")
-    if not trimmed or trimmed == "" then
-        return {}
-    end
+    if not trimmed or trimmed == "" then return {} end
     local ok, res = pcall(decodeJson, trimmed)
     if ok and type(res) == "table" then
         return res
@@ -1179,6 +1181,11 @@ local modules = {
         path = config_dir .. "/SmartRPTP.json",
         data = {}
     },
+    charter = {
+        name = 'Устав',
+        path = config_dir .. "/Charter.json",
+        data = {}
+    },
     arz_veh = {
         name = 'Транспорт',
         path = config_dir .. "/Vehicles.json",
@@ -1200,7 +1207,8 @@ local modules = {
 function load_module(key)
     local obj = modules[key]
     if not obj then
-        print('Ошибка: неизвестный модуль "' .. key .. '"!')
+        print('Ошибка: неизвестный модуль "' .. key ..
+                  '"!')
     else
         if doesFileExist(obj.path) then
             local file, errstr = io.open(obj.path, 'r')
@@ -1208,27 +1216,39 @@ function load_module(key)
                 local contents = file:read('*a')
                 file:close()
                 if #contents == 0 then
-                    print('Не удалось открыть модуль "' .. obj.name .. '". Причина: файл пустой')
+                    print('Не удалось открыть модуль "' ..
+                              obj.name ..
+                              '". Причина: файл пустой')
                 else
                     -- Убираем пробельные символы в начале и конце
                     local trimmed = contents:match("^%s*(.-)%s*$")
                     if trimmed == "" then
-                        print('Не удалось открыть модуль "' .. obj.name .. '". Причина: файл содержит только пробелы')
+                        print(
+                            'Не удалось открыть модуль "' ..
+                                obj.name ..
+                                '". Причина: файл содержит только пробелы')
                     else
                         local result, loaded = pcall(decodeJson, trimmed)
                         if result then
                             obj.data = loaded
-                            print('Модуль "' .. obj.name .. '" инициализирован! (есть ваши кастомные данные)')
+                            print('Модуль "' .. obj.name ..
+                                      '" инициализирован! (есть ваши кастомные данные)')
                         else
-                            print('Не удалось открыть модуль "' .. obj.name .. '". Ошибка: ' .. tostring(loaded))
+                            print(
+                                'Не удалось открыть модуль "' ..
+                                    obj.name .. '". Ошибка: ' ..
+                                    tostring(loaded))
                         end
                     end
                 end
             else
-                print('Не удалось открыть модуль "' .. obj.name .. '". Ошибка: ' .. (errstr or "Unknown"))
+                print('Не удалось открыть модуль "' ..
+                          obj.name .. '". Ошибка: ' ..
+                          (errstr or "Unknown"))
             end
         else
-            print('Модуль "' .. obj.name .. '" инициализирован!')
+            print('Модуль "' .. obj.name ..
+                      '" инициализирован!')
         end
     end
 end
@@ -1479,6 +1499,10 @@ local MODULE = {
     Help = {
         Window = imgui.new.bool(),
         filter = imgui.new.char[256]('') -- поле для ввода поиска
+    },
+    Charter = {
+        edit_window = imgui.new.bool(false),
+        edit_text = imgui.new.char[16384]('')
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -2996,27 +3020,31 @@ if hotkey_no_errors and not isMode('') then
     hotkey.Text.NoKey = u8 '< click and select keys >'
     hotkey.Text.WaitForKey = u8 '< wait keys >'
     function getNameKeysFrom(keys)
-    if type(keys) == "table" then
-        -- уже таблица
-        local keysStr = {}
-        for _, keyId in ipairs(keys) do
-            local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
-            table.insert(keysStr, keyName)
+        if type(keys) == "table" then
+            -- уже таблица
+            local keysStr = {}
+            for _, keyId in ipairs(keys) do
+                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or
+                                    ''
+                table.insert(keysStr, keyName)
+            end
+            return table.concat(keysStr, ' + ') or ''
+        elseif type(keys) == "string" then
+            local result, keysTable = pcall(decodeJson, keys)
+            if not result or type(keysTable) ~= 'table' then
+                return ''
+            end
+            local keysStr = {}
+            for _, keyId in ipairs(keysTable) do
+                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or
+                                    ''
+                table.insert(keysStr, keyName)
+            end
+            return table.concat(keysStr, ' + ') or ''
+        else
+            return ''
         end
-        return table.concat(keysStr, ' + ') or ''
-    elseif type(keys) == "string" then
-        local result, keysTable = pcall(decodeJson, keys)
-        if not result or type(keysTable) ~= 'table' then return '' end
-        local keysStr = {}
-        for _, keyId in ipairs(keysTable) do
-            local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
-            table.insert(keysStr, keyName)
-        end
-        return table.concat(keysStr, ' + ') or ''
-    else
-        return ''
     end
-end
     function loadHotkeys()
         MainMenuHotKey = hotkey.RegisterHotKey('Open MainMenu', false,
                                                safeDecodeJson(
@@ -3403,6 +3431,7 @@ function load_modules()
     load_module('rpgun')
     load_module('arz_veh')
     load_module('clear')
+    load_module('charter')
     cacheVehicleMosels()
     if settings.general.piemenu then
         if pie_no_errors then
@@ -6186,6 +6215,11 @@ function downloadFileFromUrlToPath(url, path)
                                message_color)
             load_update_news()
             playNotifySound()
+        elseif download_file == 'charter' then
+            sampAddChatMessage(script_tag ..
+                                   ' {ffffff}Устав успешно загружен!',
+                               message_color)
+            load_module('charter')
         end
     end
     if IS_MOBILE then
@@ -11176,6 +11210,88 @@ function render_fractions_functions()
                     modules.smart_rptp.path, 'smart_rptp', 'умный срок')
                 imgui.EndTabItem()
             end
+            if imgui.BeginTabItem(fa.BOOK .. u8 ' Устав') then
+                -- Получаем текст устава для текущей фракции (prison)
+                local charter_text = modules.charter.data['prison'] or ''
+                if imgui.BeginChild('##charter_child',
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        338 * settings.general.custom_dpi), true) then
+                    if charter_text ~= '' then
+                        -- Отображаем текст с переносом строк
+                        for line in charter_text:gmatch("[^\r\n]+") do
+                            imgui.TextWrapped(u8(line))
+                        end
+                    else
+                        imgui.CenterText(u8(
+                                             'Устав для тюрьмы не загружен.'))
+                        imgui.Separator()
+                        if imgui.CenterButton(fa.DOWNLOAD ..
+                                                  u8(
+                                                      ' Загрузить из облака ')) then
+                            download_file = 'charter'
+                            downloadFileFromUrlToPath(
+                                'https://alexwright55.github.io/Prison-Helper/Charter/Charter.json',
+                                modules.charter.path)
+                            lua_thread.create(function()
+                                while download_file == 'charter' do
+                                    wait(100)
+                                end
+                                load_module('charter')
+                            end)
+                        end
+                    end
+                    imgui.Separator()
+                    if imgui.CenterButton(fa.PEN_TO_SQUARE ..
+                                              u8(
+                                                  ' Редактировать устав ')) then
+                        imgui.StrCopy(MODULE.Charter.edit_text, u8(charter_text))
+                        MODULE.Charter.edit_window[0] = true
+                    end
+                    imgui.EndChild()
+                end
+
+                -- Модальное окно редактирования устава
+                imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                if imgui.BeginPopupModal(
+                    fa.PEN_TO_SQUARE ..
+                        u8(' Редактирование устава '),
+                    MODULE.Charter.edit_window,
+                    imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+                        imgui.WindowFlags.NoScrollbar) then
+                    change_dpi()
+                    imgui.TextWrapped(u8(
+                                          'Введите текст устава для тюрьмы.'))
+                    imgui.Separator()
+                    imgui.InputTextMultiline('##charter_edit',
+                                             MODULE.Charter.edit_text, 16384,
+                                             imgui.ImVec2(
+                                                 550 *
+                                                     settings.general.custom_dpi,
+                                                 350 *
+                                                     settings.general.custom_dpi))
+                    imgui.Separator()
+                    if imgui.Button(fa.CIRCLE_XMARK .. u8(' Отмена'),
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi, 0)) then
+                        MODULE.Charter.edit_window[0] = false
+                    end
+                    imgui.SameLine()
+                    if imgui.Button(fa.FLOPPY_DISK .. u8(' Сохранить'),
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi, 0)) then
+                        local new_text = u8:decode(
+                                             ffi.string(MODULE.Charter.edit_text))
+                        modules.charter.data['prison'] = new_text
+                        save_module('charter')
+                        MODULE.Charter.edit_window[0] = false
+                    end
+                    imgui.EndPopup()
+                end
+
+                imgui.EndTabItem()
+            end
             imgui.EndTabBar()
         end
     else
@@ -13650,8 +13766,8 @@ function isAnyHelperWindowOpen()
                MODULE.PumMenu.Window[0] or MODULE.GiveRank.Window[0] or
                MODULE.FastMenu.Window[0] or MODULE.LeaderFastMenu.Window[0] or
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
-               MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or MODULE.ClearList.Window[0] or
-               MODULE.Help.Window[0]
+               MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
+               MODULE.ClearList.Window[0] or MODULE.Help.Window[0]
 end
 
 -- Функция /time+F8

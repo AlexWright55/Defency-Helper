@@ -5,3 +5,4 @@
 [Prison Helper SmartRPTP](/SmartRPTP/28/SmartRPTP.json)<br>
 [Prison Helper Vehicles](/SmartVEH/Vehicles.json)<br>
 [Prison Helper Update-info](/Prison Helper/Update-info.json)
+[Prison Helper Charter](/Prison Helper/Charter.json)
