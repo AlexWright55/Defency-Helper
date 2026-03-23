@@ -3,7 +3,7 @@ script_name("Prison Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
-script_version("v0.0.0.2")
+script_version("v0.0.3")
 ----------------------------------------------- INIT ---------------------------------------------
 local worked_dir = getWorkingDirectory():gsub('\\', '/')
 local IS_MOBILE = MONET_VERSION ~= nil
@@ -190,20 +190,22 @@ function load_settings()
     if not doesDirectoryExist(config_dir) then createDirectory(config_dir) end
     if not doesFileExist(config_dir .. "/Settings.json") then
         settings = default_settings
-        print(
-            'Файл с настройками не найден, использую стандартные настройки!')
+        print('Файл с настройками не найден, использую стандартные настройки!')
     else
         local file = io.open(config_dir .. "/Settings.json", 'r')
         if file then
             local contents = file:read('*a')
             file:close()
-            if #contents ~= 0 then
-                local result, loaded = pcall(decodeJson, contents)
+            local trimmed = contents:match("^%s*(.-)%s*$")
+            if trimmed == "" then
+                settings = default_settings
+                print('Файл с настройками пуст, использую стандартные настройки!')
+            else
+                local result, loaded = pcall(decodeJson, trimmed)
                 if result then
                     settings = loaded
                     if settings.general.version ~= thisScript().version then
-                        print(
-                            'Новая версия, сброс настроек!')
+                        print('Новая версия, сброс настроек!')
                         local fraction_mode = settings.general.fraction_mode
                         local player_info = settings.player_info
                         local key = settings.general.key
@@ -215,23 +217,16 @@ function load_settings()
                         reload_script = true
                         thisScript():reload()
                     else
-                        print(
-                            'Настройки успешно загружены!')
+                        print('Настройки успешно загружены!')
                     end
                 else
                     settings = default_settings
-                    print(
-                        'Не удалось открыть файл с настройками, использую стандартные настройки!')
+                    print('Не удалось открыть файл с настройками, использую стандартные настройки!')
                 end
-            else
-                settings = default_settings
-                print(
-                    'Не удалось открыть файл с настройками, использую стандартные настройки!')
             end
         else
             settings = default_settings
-            print(
-                'Не удалось открыть файл с настройками, использую стандартные настройки!')
+            print('Не удалось открыть файл с настройками, использую стандартные настройки!')
         end
     end
 end
@@ -239,12 +234,32 @@ function isMode(mode_type) return settings.general.fraction_mode == mode_type en
 load_settings()
 
 local function safeDecodeJson(str)
-    if not str or str == "" then return {} end
-    local ok, res = pcall(decodeJson, str)
+    if type(str) == "table" then
+        -- уже таблица — возвращаем как есть
+        return str
+    end
+    if type(str) ~= "string" or str == "" then
+        return {}
+    end
+    local trimmed = str:match("^%s*(.-)%s*$")
+    if not trimmed or trimmed == "" then
+        return {}
+    end
+    local ok, res = pcall(decodeJson, trimmed)
     if ok and type(res) == "table" then
         return res
     else
         return {}
+    end
+end
+
+function merge_settings(default, current)
+    for k, v in pairs(default) do
+        if type(v) == "table" and type(current[k]) == "table" then
+            merge_settings(v, current[k])
+        elseif current[k] == nil then
+            current[k] = v
+        end
     end
 end
 ------------------------------------------- AUTO FIND DPI ----------------------------------------
@@ -1185,8 +1200,7 @@ local modules = {
 function load_module(key)
     local obj = modules[key]
     if not obj then
-        print('Ошибка: неизвестный модуль "' .. key ..
-                  '"!')
+        print('Ошибка: неизвестный модуль "' .. key .. '"!')
     else
         if doesFileExist(obj.path) then
             local file, errstr = io.open(obj.path, 'r')
@@ -1194,32 +1208,31 @@ function load_module(key)
                 local contents = file:read('*a')
                 file:close()
                 if #contents == 0 then
-                    print('Не удалось открыть модуль "' ..
-                              obj.name ..
-                              '". Причина: файл пустой')
+                    print('Не удалось открыть модуль "' .. obj.name .. '". Причина: файл пустой')
                 else
-                    local result, loaded = pcall(decodeJson, contents)
-                    if result then
-                        obj.data = loaded
-                        print('Модуль "' .. obj.name ..
-                                  '" инициализирован! (есть ваши кастомные данные)')
+                    -- Убираем пробельные символы в начале и конце
+                    local trimmed = contents:match("^%s*(.-)%s*$")
+                    if trimmed == "" then
+                        print('Не удалось открыть модуль "' .. obj.name .. '". Причина: файл содержит только пробелы')
                     else
-                        print(
-                            'Не удалось открыть модуль "' ..
-                                obj.name .. '". Ошибка: decode json')
+                        local result, loaded = pcall(decodeJson, trimmed)
+                        if result then
+                            obj.data = loaded
+                            print('Модуль "' .. obj.name .. '" инициализирован! (есть ваши кастомные данные)')
+                        else
+                            print('Не удалось открыть модуль "' .. obj.name .. '". Ошибка: ' .. tostring(loaded))
+                        end
                     end
                 end
             else
-                print('Не удалось открыть модуль "' ..
-                          obj.name .. '". Ошибка: ' ..
-                          (errstr or "Unknown"))
+                print('Не удалось открыть модуль "' .. obj.name .. '". Ошибка: ' .. (errstr or "Unknown"))
             end
         else
-            print('Модуль "' .. obj.name ..
-                      '" инициализирован!')
+            print('Модуль "' .. obj.name .. '" инициализирован!')
         end
     end
 end
+
 function save_module(key)
     local obj = modules[key]
     if not obj then
@@ -2983,15 +2996,27 @@ if hotkey_no_errors and not isMode('') then
     hotkey.Text.NoKey = u8 '< click and select keys >'
     hotkey.Text.WaitForKey = u8 '< wait keys >'
     function getNameKeysFrom(keys)
-        local result, keys = pcall(decodeJson, keys)
-        if not result or type(keys) ~= 'table' then return '' end
+    if type(keys) == "table" then
+        -- уже таблица
         local keysStr = {}
         for _, keyId in ipairs(keys) do
             local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
             table.insert(keysStr, keyName)
         end
         return table.concat(keysStr, ' + ') or ''
+    elseif type(keys) == "string" then
+        local result, keysTable = pcall(decodeJson, keys)
+        if not result or type(keysTable) ~= 'table' then return '' end
+        local keysStr = {}
+        for _, keyId in ipairs(keysTable) do
+            local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
+            table.insert(keysStr, keyName)
+        end
+        return table.concat(keysStr, ' + ') or ''
+    else
+        return ''
     end
+end
     function loadHotkeys()
         MainMenuHotKey = hotkey.RegisterHotKey('Open MainMenu', false,
                                                safeDecodeJson(
@@ -3249,7 +3274,7 @@ function main()
     if settings.general.fraction_mode == '' then
         repeat wait(0) until sampIsLocalPlayerSpawned()
         MODULE.Initial.Window[0] = true
-        return
+        return MODULE.Initial.Window[0]
     end
 
     load_modules()
@@ -7737,7 +7762,6 @@ addEventHandler('onWindowMessage', function(msg, key, lparam)
                 MODULE.CommandPause.Window[0] = false
                 MODULE.CommandStop.Window[0] = false
                 MODULE.FastMenuPlayers.Window[0] = false
-                MODULE.Initial.Window[0] = false
                 MODULE.ClearList.Window[0] = false
                 MODULE.Help.Window[0] = false
 
@@ -7876,26 +7900,8 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
                 MODULE.Initial.fraction_type_icon = icon
             end
         end
-        render_org_block(1, fa.BUILDING_SHIELD, 'Мин.Юстиции',
-                         'ЛСПД/ЛВПД/СФПД/ФБР/РКШ')
-        imgui.SameLine()
-        render_org_block(2, fa.HOSPITAL, 'Мин.Здрав.',
-                         'ЛСМЦ/ЛВМЦ/СФМЦ/ДМЦ')
-        imgui.SameLine()
         render_org_block(3, fa.BUILDING_SHIELD, 'Мин.Обороны',
                          'ЛСа/СФА/ВС/ТСР/ФСИН')
-        render_org_block(4, fa.BUILDING_NGO, 'Масс.Медиа',
-                         'СМИ ЛС/ЛВ/СФ/ВС/АЗ')
-        imgui.SameLine()
-        render_org_block(5, fa.BUILDING_COLUMNS,
-                         'Центральный аппарат',
-                         'Право/ГЦЛ/СТК/МРЭО')
-        imgui.SameLine()
-        render_org_block(6, fa.HOTEL, 'Пожарная часть', 'ПД')
-        render_org_block(7, fa.TORII_GATE, 'Мафия', 'YKZ/LCN/RM/WMC/TRB')
-        imgui.SameLine()
-        render_org_block(8, fa.BUILDING_WHEAT, 'Банда',
-                         'Грув/Балас/Рифа/Вагос')
         imgui.SameLine()
         render_org_block(0, fa.BUILDING_CIRCLE_XMARK,
                          'Без организации',
@@ -7951,47 +7957,6 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
             end
         end
         local orgs = {
-            [1] = {
-                {
-                    name = "Полиция Лос-Сантоса",
-                    tag = "ЛСПД"
-                },
-                {
-                    name = "Полиция Лас-Вентураса",
-                    tag = "ЛВПД"
-                },
-                {name = "Полиция Сан-Фиерро", tag = "СФПД"},
-                {name = "Областная полиция", tag = "РКШД"},
-                {name = "S.W.A.T.", tag = "СВАТ"},
-                {
-                    name = "Фед.Бюро Расследований",
-                    tag = "ФБР"
-                },
-                {name = "Городская полиция", tag = "ГУВД"},
-                {name = "Полиция округа", tag = "КТЦ"},
-                {
-                    name = "Фед.Служба Безопасности",
-                    tag = "ФСБ"
-                }
-            },
-            [2] = {
-                {
-                    name = "Больница Лос-Сантоса",
-                    tag = "ЛСМЦ"
-                },
-                {
-                    name = "Больница Лас-Вентураса",
-                    tag = "ЛВМЦ"
-                },
-                {
-                    name = "Больница Сан-Фиерро",
-                    tag = "СФМЦ"
-                },
-                {name = "Больница Джефферсон", tag = "ДМЦ"},
-                {name = "Больница Вайс-Сити", tag = "ВСМЦ"},
-                {name = "Городская больница", tag = "СМП"},
-                {name = "Больница округа", tag = "МУСС"}
-            },
             [3] = {
                 {name = "Армия Лос-Сантоса", tag = "ЛСа"},
                 {name = "Армия Сан-Фиерро", tag = "СФа"},
@@ -8004,44 +7969,6 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
                     name = "Фед.Служба Исп.Наказаний",
                     tag = "ФСИН"
                 }
-            },
-            [4] = {
-                {name = "СМИ Лос-Сантоса", tag = "СМИ ЛС"},
-                {name = "СМИ Лас-Вентураса", tag = "СМИ ЛВ"},
-                {name = "СМИ Сан-Фиерро", tag = "СМИ СФ"},
-                {name = "СМИ Вайс-Сити", tag = "СМИ ВС"},
-                {name = "СМИ Арзамаса", tag = "НА"}
-            },
-            [5] = {
-                {name = "Правительство", tag = "Право"},
-                {
-                    name = "Центр лицензирования",
-                    tag = "ГЦЛ"
-                },
-                {name = "Страховая компания", tag = "СТК"},
-                {name = "Судья", tag = "Судья"},
-                {name = "МРЭО ГИБДД", tag = "МРЭО"}
-            },
-            [6] = {
-                {name = "Пожарный департамент", tag = "ПД"}
-            },
-            [7] = {
-                {name = "Yakuza", tag = "YKZ"},
-                {name = "La Cosa Nostra", tag = "LCN"},
-                {name = "Russian Mafia", tag = "RM"},
-                {name = "Warlock MC", tag = "WMC"},
-                {name = "Tierra Robada Bikers", tag = "TRB"},
-                {name = "Украинская мафия", tag = "УМ"},
-                {name = "Кавказкая мафия", tag = "КМ"},
-                {name = "Русская мафия", tag = "РМ"}
-            },
-            [8] = {
-                {name = "Grove Street", tag = "Грув"},
-                {name = "East Side Ballas", tag = "Балас"},
-                {name = "Los Santos Vagos", tag = "Вагос"},
-                {name = "The Rifa", tag = "Рифа"},
-                {name = "Varrios Los Aztecas", tag = "Ацтек"},
-                {name = "Night Wolves", tag = "Волки"}
             }
         }
         local org_list = orgs[MODULE.Initial.fraction_type_selector]
@@ -8128,82 +8055,6 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
                 mode = "none",
                 tag = "Нету"
             }, {
-                id = 11,
-                name = "Полиция Лос-Сантоса",
-                mode = "police",
-                tag = "ЛСПД"
-            }, {
-                id = 12,
-                name = "Полиция Лас-Вентураса",
-                mode = "police",
-                tag = "ЛВПД"
-            }, {
-                id = 13,
-                name = "Полиция Сан-Фиерро",
-                mode = "police",
-                tag = "СФПД"
-            }, {
-                id = 14,
-                name = "Областная полиция",
-                mode = "police",
-                tag = "РКШД"
-            }, {id = 15, name = "S.W.A.T.", mode = "police", tag = "СВАТ"},
-            {
-                id = 16,
-                name = "Фед. Бюро Расследований",
-                mode = "fbi",
-                tag = "ФБР"
-            }, {
-                id = 17,
-                name = "Городская полиция",
-                mode = "police",
-                tag = "ГУВД"
-            }, {
-                id = 18,
-                name = "Полиция округа",
-                mode = "police",
-                tag = "КТЦ"
-            }, {
-                id = 19,
-                name = "Фед. Служба Безопасности",
-                mode = "fbi",
-                tag = "ФСБ"
-            }, {
-                id = 21,
-                name = "Больница Лос-Сантоса",
-                mode = "hospital",
-                tag = "ЛСМЦ"
-            }, {
-                id = 22,
-                name = "Больница Лас-Вентураса",
-                mode = "hospital",
-                tag = "ЛВМЦ"
-            }, {
-                id = 23,
-                name = "Больница Сан-Фиерро",
-                mode = "hospital",
-                tag = "СФМЦ"
-            }, {
-                id = 24,
-                name = "Больница Джефферсон",
-                mode = "hospital",
-                tag = "ДМЦ"
-            }, {
-                id = 25,
-                name = "Больница Вайс-Сити",
-                mode = "hospital",
-                tag = "ВСМЦ"
-            }, {
-                id = 26,
-                name = "Городская больница",
-                mode = "hospital",
-                tag = "СМП"
-            }, {
-                id = 27,
-                name = "Больница округа",
-                mode = "hospital",
-                tag = "МУСС"
-            }, {
                 id = 31,
                 name = "Армия Лос-Сантоса",
                 mode = "army",
@@ -8229,110 +8080,6 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
                 name = "Фед. Служба Исп. Наказаний",
                 mode = "prison",
                 tag = "ФСИН"
-            }, {
-                id = 41,
-                name = "СМИ Лос-Сантоса",
-                mode = "smi",
-                tag = "СМИ ЛС"
-            }, {
-                id = 42,
-                name = "СМИ Лас-Вентураса",
-                mode = "smi",
-                tag = "СМИ ЛВ"
-            }, {
-                id = 43,
-                name = "СМИ Сан-Фиерро",
-                mode = "smi",
-                tag = "СМИ СФ"
-            },
-            {
-                id = 44,
-                name = "СМИ Вайс-Сити",
-                mode = "smi",
-                tag = "СМИ ВС"
-            },
-            {
-                id = 45,
-                name = "СМИ Арзамаса",
-                mode = "smi",
-                tag = "НА"
-            }, {
-                id = 51,
-                name = "Правительство",
-                mode = "gov",
-                tag = "Право"
-            }, {
-                id = 52,
-                name = "Центр лицензирования",
-                mode = "lc",
-                tag = "ГЦЛ"
-            }, {
-                id = 53,
-                name = "Страховая компания",
-                mode = "ins",
-                tag = "СТК"
-            },
-            {id = 54, name = "Судья", mode = "judge", tag = "Судья"},
-            {
-                id = 55,
-                name = "МРЭО ГИБДД",
-                mode = "lc",
-                tag = "МРЭО"
-            }, {
-                id = 61,
-                name = "Пожарный департамент",
-                mode = "fd",
-                tag = "ПД"
-            }, {id = 71, name = "Yakuza", mode = "mafia", tag = "YKZ"},
-            {id = 72, name = "La Cosa Nostra", mode = "mafia", tag = "ЛКН"},
-            {id = 73, name = "Russian Mafia", mode = "mafia", tag = "РМ"},
-            {id = 74, name = "Warlock MC", mode = "mafia", tag = "WMC"},
-            {
-                id = 75,
-                name = "Tierra Robada Bikers",
-                mode = "mafia",
-                tag = "ТРБ"
-            }, {
-                id = 76,
-                name = "Украинская мафия",
-                mode = "mafia",
-                tag = "УМ"
-            }, {
-                id = 77,
-                name = "Кавказская мафия",
-                mode = "mafia",
-                tag = "КМ"
-            },
-            {
-                id = 78,
-                name = "Русская мафия",
-                mode = "mafia",
-                tag = "РМ"
-            },
-            {id = 81, name = "Grove Street", mode = "ghetto", tag = "Грув"},
-            {
-                id = 82,
-                name = "East Side Ballas",
-                mode = "ghetto",
-                tag = "Балас"
-            },
-            {
-                id = 83,
-                name = "Los Santos Vagos",
-                mode = "ghetto",
-                tag = "Вагос"
-            }, {id = 84, name = "The Rifa", mode = "ghetto", tag = "Рифа"},
-            {
-                id = 85,
-                name = "Varrios Los Aztecas",
-                mode = "ghetto",
-                tag = "Ацтек"
-            },
-            {
-                id = 86,
-                name = "Night Wolves",
-                mode = "ghetto",
-                tag = "Волки"
             }
         }
         for index, value in ipairs(fraction_modes) do
@@ -11277,7 +11024,6 @@ function sendClickKeySync(key)
 end
 
 function render_fractions_functions()
-    -- Убран параметр isVip
     local function render_assist_item(name, description, tbl, key, func)
         imgui.Separator()
         imgui.Columns(3)
@@ -11383,10 +11129,6 @@ function render_fractions_functions()
                                settings.general, "auto_doklad_post")
         end
         if settings.player_info.fraction_rank_number >= 9 then
-            render_assist_item(
-                "Инвайт игроков по фразе [9/10]",
-                'Автоматически инвайтит игроков, которые просят инвайт в чате.\nДля настройки выдачи ранга нажмите на шестерёнку справа от кнопки\n\nМОЖЕТ БЫТЬ ЗАПРЕЩЕНО НА НЕКОТОРЫХ СЕРВЕРАХ! УТОЧНЯЙТЕ В /REPORT',
-                settings.general.auto_invite, "enable")
             render_assist_item(
                 "Увал сотрудников по ПСЖ [9/10]",
                 "Автоматическое увольнение сотрудников, которые просят увал ПСЖ в /r /rb /f /fb\nПример ситуации как это работает:\n1) Игрок пишет в /r Увольте меня по псж\n2) Cкрипт отвечает: /rb Nick_Name, отправьте /rb +++ чтобы уволиться ПСЖ!\n3) Игрок отправляет /rb +++ и скрипт его увольняет по ПСЖ\n\nP.S. Если игрок флудит просьбами об увале, скрипт САМ его уволит, без +++\nP.S.S. Данная функция работает только если вы одеты в рабочую форму.",
@@ -13908,8 +13650,7 @@ function isAnyHelperWindowOpen()
                MODULE.PumMenu.Window[0] or MODULE.GiveRank.Window[0] or
                MODULE.FastMenu.Window[0] or MODULE.LeaderFastMenu.Window[0] or
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
-               MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
-               MODULE.Initial.Window[0] or MODULE.ClearList.Window[0] or
+               MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or MODULE.ClearList.Window[0] or
                MODULE.Help.Window[0]
 end
 
