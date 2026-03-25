@@ -58,6 +58,7 @@ local hotkey_no_errors, hotkey = pcall(require, 'mimgui_hotkeys')
 local pie_no_errors, pie = pcall(require, IS_MOBILE and 'imgui_piemenu' or
                                      'mimgui_piemenu_mod')
 local sizeX, sizeY = getScreenResolution()
+local FLT_MAX = 3.402823466e+38
 local script_tag = '[Prison Helper]'
 print('Библиотеки успешно подключены!')
 ffi.cdef [[
@@ -1501,8 +1502,8 @@ local MODULE = {
         filter = imgui.new.char[256]('') -- поле для ввода поиска
     },
     Charter = {
-        edit_window = imgui.new.bool(false),
-        edit_text = imgui.new.char[16384]('')
+        edit_text = imgui.new.char[16384](''),
+        Window = imgui.new.bool()
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -3452,6 +3453,12 @@ function load_modules()
         end
     end
 
+    if not modules.charter.data['prison'] or modules.charter.data['prison'] == '' then
+    local url = 'https://alexwright55.github.io/Prison-Helper/Charter/' .. getServerNumber() .. '/Charter.json'
+    download_file = 'charter'
+    downloadFileFromUrlToPath(url, modules.charter.path)
+end
+
     -- Загружаем данные Clear.json
     modules.clear.data = load_clear_data()
     print(
@@ -4130,6 +4137,17 @@ function initialize_commands()
     end)
 
     if not isMode('none') then
+        sampRegisterChatCommand("order", function()
+            local charter_text = modules.charter.data['prison'] or ''
+    if charter_text == '' then
+        sampAddChatMessage(script_tag ..
+                               ' {ffffff}Устав не загружен!',
+                           message_color)
+        return
+    end
+    MODULE.Charter.Window[0] = not MODULE.Charter.Window[0]
+        end)
+
         sampRegisterChatCommand("mb", function(arg)
             if not MODULE.Binder.state.isActive then
                 if MODULE.Members.Window[0] then
@@ -6220,6 +6238,7 @@ function downloadFileFromUrlToPath(url, path)
                                    ' {ffffff}Устав успешно загружен!',
                                message_color)
             load_module('charter')
+            download_file = '' -- <-- добавляем сброс флага загрузки
         end
     end
     if IS_MOBILE then
@@ -6993,8 +7012,8 @@ function sampev.onServerMessage(color, text)
         return false
     end
 
-    if (text:find('Flip_Anderson') and getServerNumber() == '20') or
-        text:find('%[20%]Flip_Anderson') then
+    if (text:find('Flip_Anderson') and getServerNumber() == '28') or
+        text:find('%[28%]Flip_Anderson') then
         local lastColor = text:match("(.+){%x+}$")
         if not lastColor then
             lastColor = "{" .. rgba_to_hex(color) .. "}"
@@ -7002,14 +7021,14 @@ function sampev.onServerMessage(color, text)
         if text:find('%[VIP ADV%]') or text:find('%[FOREVER%]') then
             lastColor = "{FFFFFF}"
         end
-        if text:find('%[20%]Flip_Anderson%[%d+%]') then
-            local id = text:match('%[20%]Flip_Anderson%[(%d+)%]') or ''
-            text = string.gsub(text, '%[20%]Flip_Anderson%[%d+%]',
-                               message_color_hex .. '[20]Flip_Anderson[' .. id ..
+        if text:find('%[28%]Flip_Anderson%[%d+%]') then
+            local id = text:match('%[28%]Flip_Anderson%[(%d+)%]') or ''
+            text = string.gsub(text, '%[28%]Flip_Anderson%[%d+%]',
+                               message_color_hex .. '[28]Flip_Anderson[' .. id ..
                                    ']' .. lastColor)
-        elseif text:find('%[20%]Flip_Anderson') then
-            text = string.gsub(text, '%[20%]Flip_Anderson', message_color_hex ..
-                                   '[20]Flip_Anderson' .. lastColor)
+        elseif text:find('%[28%]Flip_Anderson') then
+            text = string.gsub(text, '%[28%]Flip_Anderson', message_color_hex ..
+                                   '[28]Flip_Anderson' .. lastColor)
         elseif text:find('Flip_Anderson%[%d+%]') then
             local id = text:match('Flip_Anderson%[(%d+)%]') or ''
             text = string.gsub(text, 'Flip_Anderson%[%d+%]',
@@ -7798,6 +7817,7 @@ addEventHandler('onWindowMessage', function(msg, key, lparam)
                 MODULE.FastMenuPlayers.Window[0] = false
                 MODULE.ClearList.Window[0] = false
                 MODULE.Help.Window[0] = false
+                MODULE.Charter.Window[0] = false
 
                 -- Пытаемся заблокировать клавишу
                 setVirtualKeyDown(27, false)
@@ -11211,85 +11231,7 @@ function render_fractions_functions()
                 imgui.EndTabItem()
             end
             if imgui.BeginTabItem(fa.BOOK .. u8 ' Устав') then
-                -- Получаем текст устава для текущей фракции (prison)
-                local charter_text = modules.charter.data['prison'] or ''
-                if imgui.BeginChild('##charter_child',
-                                    imgui.ImVec2(
-                                        589 * settings.general.custom_dpi,
-                                        338 * settings.general.custom_dpi), true) then
-                    if charter_text ~= '' then
-                        -- Отображаем текст с переносом строк
-                        for line in charter_text:gmatch("[^\r\n]+") do
-                            imgui.TextWrapped(u8(line))
-                        end
-                    else
-                        imgui.CenterText(u8(
-                                             'Устав для тюрьмы не загружен.'))
-                        imgui.Separator()
-                        if imgui.CenterButton(fa.DOWNLOAD ..
-                                                  u8(
-                                                      ' Загрузить из облака ')) then
-                            download_file = 'charter'
-                            downloadFileFromUrlToPath(
-                                'https://alexwright55.github.io/Prison-Helper/Charter/Charter.json',
-                                modules.charter.path)
-                            lua_thread.create(function()
-                                while download_file == 'charter' do
-                                    wait(100)
-                                end
-                                load_module('charter')
-                            end)
-                        end
-                    end
-                    imgui.Separator()
-                    if imgui.CenterButton(fa.PEN_TO_SQUARE ..
-                                              u8(
-                                                  ' Редактировать устав ')) then
-                        imgui.StrCopy(MODULE.Charter.edit_text, u8(charter_text))
-                        MODULE.Charter.edit_window[0] = true
-                    end
-                    imgui.EndChild()
-                end
-
-                -- Модальное окно редактирования устава
-                imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
-                                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
-                if imgui.BeginPopupModal(
-                    fa.PEN_TO_SQUARE ..
-                        u8(' Редактирование устава '),
-                    MODULE.Charter.edit_window,
-                    imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
-                        imgui.WindowFlags.NoScrollbar) then
-                    change_dpi()
-                    imgui.TextWrapped(u8(
-                                          'Введите текст устава для тюрьмы.'))
-                    imgui.Separator()
-                    imgui.InputTextMultiline('##charter_edit',
-                                             MODULE.Charter.edit_text, 16384,
-                                             imgui.ImVec2(
-                                                 550 *
-                                                     settings.general.custom_dpi,
-                                                 350 *
-                                                     settings.general.custom_dpi))
-                    imgui.Separator()
-                    if imgui.Button(fa.CIRCLE_XMARK .. u8(' Отмена'),
-                                    imgui.ImVec2(
-                                        200 * settings.general.custom_dpi, 0)) then
-                        MODULE.Charter.edit_window[0] = false
-                    end
-                    imgui.SameLine()
-                    if imgui.Button(fa.FLOPPY_DISK .. u8(' Сохранить'),
-                                    imgui.ImVec2(
-                                        200 * settings.general.custom_dpi, 0)) then
-                        local new_text = u8:decode(
-                                             ffi.string(MODULE.Charter.edit_text))
-                        modules.charter.data['prison'] = new_text
-                        save_module('charter')
-                        MODULE.Charter.edit_window[0] = false
-                    end
-                    imgui.EndPopup()
-                end
-
+                renderCharterGUI()
                 imgui.EndTabItem()
             end
             imgui.EndTabBar()
@@ -12773,6 +12715,183 @@ if isMode('prison') then
     end
 end
 if isMode('prison') then
+    function renderCharterGUI()
+        local charter_text = modules.charter.data['prison'] or ''
+        if imgui.BeginChild('##charter_child',
+                            imgui.ImVec2(589 * settings.general.custom_dpi,
+                                         338 * settings.general.custom_dpi),
+                            true) then
+            if charter_text ~= '' then
+                imgui.CenterColorText(imgui.ImVec4(0, 1, 0, 1),
+                                      u8("Устав загружен"))
+            else
+                imgui.CenterColorText(imgui.ImVec4(1, 0.231, 0.231, 1),
+                                      u8("Устав не загружен"))
+            end
+            imgui.Separator()
+
+            -- Кнопка загрузки/обновления из облака
+            imgui.SetCursorPosY(90 * settings.general.custom_dpi)
+            imgui.SetCursorPosX(220 * settings.general.custom_dpi)
+            if imgui.Button(fa.DOWNLOAD ..
+                                (charter_text ~= '' and
+                                    u8 ' Обновить из облака ' or
+                                    u8 ' Загрузить из облака ') ..
+                                fa.DOWNLOAD .. '##charter') then
+                _G.download_charter = true
+                download_file = 'charter'
+                local url = 'https://alexwright55.github.io/SmartRules/' .. getServerNumber() .. '/Charter.json'
+                downloadFileFromUrlToPath(url,
+                    modules.charter.path)
+                imgui.OpenPopup(fa.CIRCLE_INFO .. u8 ' Оповещение ' ..
+                                    fa.CIRCLE_INFO .. '##downloadcharter')
+            end
+
+            imgui.CenterText(
+                u8 'Данные из облака устарели или неактуальные?')
+            imgui.CenterText(
+                u8 'Сообщите модерам на нашем Discord сервере.')
+
+            -- Попап загрузки
+            imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                   imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+            if imgui.BeginPopupModal(fa.CIRCLE_INFO ..
+                                         u8 ' Оповещение ' ..
+                                         fa.CIRCLE_INFO .. '##downloadcharter',
+                                     nil, imgui.WindowFlags.NoCollapse +
+                                         imgui.WindowFlags.NoResize) then
+                if _G.download_charter then
+                    change_dpi()
+                    imgui.CenterText(
+                        u8 'Идёт скачивание устава для сервера ' ..
+                            u8(getServerName(getServerNumber())) .. " [" ..
+                            getServerNumber() .. ']')
+                    imgui.CenterText(
+                        u8 'После успешной загрузки менюшка пропадёт и вы увидите сообщение в чате про завершение.')
+                    imgui.Separator()
+                    imgui.CenterText(
+                        u8 'Если прошло больше 10 секунд и ничего не происходит, то произошла ошибка загрузки')
+                    imgui.CenterText(
+                        u8 'Что можно сделать в случае ошибки:')
+                    imgui.CenterText(
+                        u8 '1) Заполнить устав вручную, нажав кнопку «Отредактировать»')
+                    imgui.CenterText(
+                        u8 '2) Вручную скачать json файлик из облака, и поместить его по пути:')
+                    if #modules.charter.path > 98 then
+                        local first_part = modules.charter.path:sub(1, 98)
+                        local second_part =
+                            modules.charter.path:sub(99, #modules.charter.path)
+                        imgui.CenterText(u8(first_part))
+                        imgui.CenterText(u8(second_part))
+                    else
+                        imgui.CenterText(u8(modules.charter.path))
+                    end
+                    imgui.Separator()
+
+                    if download_file ~= 'charter' then
+                        _G.download_charter = false
+                        imgui.CloseCurrentPopup()
+                    end
+                else
+                    MODULE.Main.Window[0] = false
+                    imgui.CloseCurrentPopup()
+                end
+
+                if imgui.Button(fa.CIRCLE_XMARK ..
+                                    u8 ' Закрыть##close_charter',
+                                imgui.ImVec2(300 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
+                    _G.download_charter = false
+                    imgui.CloseCurrentPopup()
+                end
+                imgui.SameLine()
+                if imgui.Button(fa.GLOBE ..
+                                    u8 ' Открыть облако##open_web_charter',
+                                imgui.ImVec2(300 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
+                    openLink("https://github.com/AlexWright55/Prison-Helper")
+                    openLink(
+                        'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Charter.json')
+                    imgui.CloseCurrentPopup()
+                    MODULE.Main.Window[0] = false
+                end
+                imgui.EndPopup()
+            end
+
+            -- Кнопка ручного редактирования
+            imgui.SetCursorPosY(220 * settings.general.custom_dpi)
+            imgui.SetCursorPosX(200 * settings.general.custom_dpi)
+            if imgui.Button(fa.PEN_TO_SQUARE ..
+                                u8 ' Отредактировать вручную ' ..
+                                fa.PEN_TO_SQUARE .. '##charter_edit') then
+                imgui.StrCopy(MODULE.Charter.edit_text, u8(charter_text))
+                imgui.OpenPopup(fa.PEN_TO_SQUARE ..
+                                    u8(
+                                        ' Редактирование устава '))
+            end
+
+            -- Попап редактирования (исправлен)
+            imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                   imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+            -- Задаём начальный размер и ограничения
+            imgui.SetNextWindowSize(imgui.ImVec2(700 *
+                                                     settings.general.custom_dpi,
+                                                 500 *
+                                                     settings.general.custom_dpi),
+                                    imgui.Cond.FirstUseEver)
+            imgui.SetNextWindowSizeConstraints(imgui.ImVec2(650 *
+                                                                settings.general
+                                                                    .custom_dpi,
+                                                            400 *
+                                                                settings.general
+                                                                    .custom_dpi),
+                                               imgui.ImVec2(1e9, 1e9))
+            if imgui.BeginPopupModal(fa.PEN_TO_SQUARE ..
+                                         u8(
+                                             ' Редактирование устава '),
+                                     nil, imgui.WindowFlags.NoCollapse) then
+                change_dpi()
+                imgui.TextWrapped(u8(
+                                      'Введите текст устава для тюрьмы.'))
+                imgui.Separator()
+
+                -- Поле ввода: занимает всё доступное пространство, кнопки будут внизу
+                if imgui.BeginChild("##charter_edit_child",
+                                    imgui.ImVec2(690, 410), true) then
+                    imgui.InputTextMultiline('##charter_edit',
+                                             MODULE.Charter.edit_text, 16384,
+                                             imgui.ImVec2(-1, -1))
+                    imgui.EndChild()
+                end
+
+                imgui.Separator()
+                if imgui.Button(fa.CIRCLE_XMARK .. u8(' Отмена'),
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             0)) then
+                    imgui.CloseCurrentPopup()
+                end
+                imgui.SameLine()
+                if imgui.Button(fa.FLOPPY_DISK .. u8(' Сохранить'),
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             0)) then
+                    local new_text = u8:decode(
+                                         ffi.string(MODULE.Charter.edit_text))
+                    modules.charter.data['prison'] = new_text
+                    save_module('charter')
+                    imgui.CloseCurrentPopup()
+                end
+                imgui.EndPopup()
+            end
+
+            imgui.CenterText(
+                u8 'На случай отсутствия данных под ваш сервер')
+            imgui.CenterText(
+                u8 'Для продвинутых пользователей')
+            imgui.EndChild()
+        end
+    end
+end
+if isMode('prison') then
     imgui.OnFrame(function() return MODULE.PumMenu.Window[0] end,
                   function(player)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
@@ -13756,6 +13875,33 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
     imgui.End()
 end)
 
+imgui.OnFrame(function() return MODULE.Charter.Window[0] end, function()
+    local window_width = sizeX * 0.8  -- 80% ширины экрана
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(window_width, 0),
+                            imgui.Cond.FirstUseEver)
+    imgui.Begin(fa.BOOK .. u8 " Устав тюрьмы " .. fa.BOOK,
+                MODULE.Charter.Window,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.AlwaysAutoResize)
+    change_dpi()
+    local charter_text = modules.charter.data['prison'] or ''
+    if charter_text == '' then
+        imgui.CenterText(u8 "Устав не загружен!")
+    else
+        local max_height = sizeY * 0.8
+        if imgui.BeginChild("##charter_display", imgui.ImVec2(0, max_height), true) then
+            imgui.TextWrapped(u8(charter_text))
+            imgui.EndChild()
+        end
+    end
+    imgui.Separator()
+    if imgui.Button(fa.CIRCLE_XMARK .. u8 " Закрыть",
+                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+        MODULE.Charter.Window[0] = false
+    end
+    imgui.End()
+end)
 ------------------------------- OTHER FUNCTIONS --------------------------
 -- Функция для проверки, открыто ли хотя бы одно окно хелпера
 function isAnyHelperWindowOpen()
@@ -13767,7 +13913,7 @@ function isAnyHelperWindowOpen()
                MODULE.FastMenu.Window[0] or MODULE.LeaderFastMenu.Window[0] or
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
                MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
-               MODULE.ClearList.Window[0] or MODULE.Help.Window[0]
+               MODULE.ClearList.Window[0] or MODULE.Help.Window[0] or MODULE.Charter.Window[0]
 end
 
 -- Функция /time+F8

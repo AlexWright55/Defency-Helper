@@ -11,10 +11,13 @@
     "sex":"Мужчина",
     "accent_enable":false
   },
-  "niltext":true,
+  "wrap_text_chat":{
+    "func":false,
+    "num_char":"82"
+  },
   "display_map_distance":{
-    "user":false,
-    "server":false
+    "user":true,
+    "server":true
   },
   "time_hud":true,
   "windows_pos":{
@@ -41,12 +44,13 @@
   },
   "general":{
     "rp_guns":false,
-    "version":"v0.0.0.2",
+    "version":"v0.0.3",
     "custom_dpi":1,
     "cruise_control":true,
     "moonmonet_theme_color":12434877,
     "bind_action":"[13]",
     "bind_command_stop":"[123]",
+    "wrap_text_chat_num_char":10,
     "uid":0,
     "helper_theme":0,
     "author":"Flip Anderson",
@@ -54,15 +58,16 @@
     "bind_leader_fastmenu":"[71]",
     "bind_mainmenu":"[113]",
     "ping":true,
-    "auto_update_members":true,
-    "mobile_fastmenu_button":true,
+    "wrap_text_chat":true,
     "message_color":40703,
-    "fraction_mode":"prison",
-    "bind_fastmenu":"[69]",
-    "autofind_dpi":true,
-    "auto_uninvite":false,
-    "mobile_stop_button":true,
+    "mobile_fastmenu_button":true,
     "auto_accept_docs":true,
+    "fraction_mode":"prison",
+    "autofind_dpi":true,
+    "mobile_stop_button":true,
+    "auto_uninvite":false,
+    "bind_fastmenu":"[69]",
+    "auto_update_members":true,
     "clear_chat":true
   },
   "md":{
