@@ -1,9 +1,9 @@
 {
-  "1":{
-    "name":"1",
-    "item":[{
-        "number":"1.1",
-        "text":"Тест"
-      }]
-  }
+  "chapters":[{
+      "title":"1",
+      "articles":[{
+          "number":"1.1",
+          "text":"Тест"
+        }]
+    }]
 }
