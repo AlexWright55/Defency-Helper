@@ -13154,7 +13154,7 @@ if isMode('prison') then
                                     '##charter_edititeminput_add',
                                     imgui.ImVec2(
                                         489 * settings.general.custom_dpi,
-                                        150 * settings.general.custom_dpi), true) then
+                                        200 * settings.general.custom_dpi), true) then
                                     change_dpi()
                                     imgui.CenterText(u8(
                                                          'Номер статьи (например, 1.1):'))
@@ -13176,7 +13176,7 @@ if isMode('prison') then
                                                                  478 *
                                                                      settings.general
                                                                          .custom_dpi,
-                                                                 100))
+                                                                 120))
                                     imgui.EndChild()
                                 end
                                 if imgui.Button(fa.CIRCLE_XMARK ..
