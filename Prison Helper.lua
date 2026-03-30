@@ -3,7 +3,7 @@ script_name("Prison Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
-script_version("v0.0.3")
+script_version("v0.0.4")
 ----------------------------------------------- INIT ---------------------------------------------
 local worked_dir = getWorkingDirectory():gsub('\\', '/')
 local IS_MOBILE = MONET_VERSION ~= nil
@@ -190,7 +190,8 @@ function load_settings()
     if not doesDirectoryExist(config_dir) then createDirectory(config_dir) end
     if not doesFileExist(config_dir .. "/Settings.json") then
         settings = default_settings
-        print('Файл с настройками не найден, использую стандартные настройки!')
+        print(
+            'Файл с настройками не найден, использую стандартные настройки!')
     else
         local file = io.open(config_dir .. "/Settings.json", 'r')
         if file then
@@ -199,13 +200,15 @@ function load_settings()
             local trimmed = contents:match("^%s*(.-)%s*$")
             if trimmed == "" then
                 settings = default_settings
-                print('Файл с настройками пуст, использую стандартные настройки!')
+                print(
+                    'Файл с настройками пуст, использую стандартные настройки!')
             else
                 local result, loaded = pcall(decodeJson, trimmed)
                 if result then
                     settings = loaded
                     if settings.general.version ~= thisScript().version then
-                        print('Новая версия, сброс настроек!')
+                        print(
+                            'Новая версия, сброс настроек!')
                         local fraction_mode = settings.general.fraction_mode
                         local player_info = settings.player_info
                         local key = settings.general.key
@@ -217,16 +220,19 @@ function load_settings()
                         reload_script = true
                         thisScript():reload()
                     else
-                        print('Настройки успешно загружены!')
+                        print(
+                            'Настройки успешно загружены!')
                     end
                 else
                     settings = default_settings
-                    print('Не удалось открыть файл с настройками, использую стандартные настройки!')
+                    print(
+                        'Не удалось открыть файл с настройками, использую стандартные настройки!')
                 end
             end
         else
             settings = default_settings
-            print('Не удалось открыть файл с настройками, использую стандартные настройки!')
+            print(
+                'Не удалось открыть файл с настройками, использую стандартные настройки!')
         end
     end
 end
@@ -238,13 +244,9 @@ local function safeDecodeJson(str)
         -- уже таблица — возвращаем как есть
         return str
     end
-    if type(str) ~= "string" or str == "" then
-        return {}
-    end
+    if type(str) ~= "string" or str == "" then return {} end
     local trimmed = str:match("^%s*(.-)%s*$")
-    if not trimmed or trimmed == "" then
-        return {}
-    end
+    if not trimmed or trimmed == "" then return {} end
     local ok, res = pcall(decodeJson, trimmed)
     if ok and type(res) == "table" then
         return res
@@ -1179,6 +1181,11 @@ local modules = {
         path = config_dir .. "/SmartRPTP.json",
         data = {}
     },
+    smart_charter = {
+        name = 'Система устава',
+        path = config_dir .. "/SmartCharter.json",
+        data = {}
+    },
     arz_veh = {
         name = 'Транспорт',
         path = config_dir .. "/Vehicles.json",
@@ -1200,7 +1207,8 @@ local modules = {
 function load_module(key)
     local obj = modules[key]
     if not obj then
-        print('Ошибка: неизвестный модуль "' .. key .. '"!')
+        print('Ошибка: неизвестный модуль "' .. key ..
+                  '"!')
     else
         if doesFileExist(obj.path) then
             local file, errstr = io.open(obj.path, 'r')
@@ -1208,27 +1216,39 @@ function load_module(key)
                 local contents = file:read('*a')
                 file:close()
                 if #contents == 0 then
-                    print('Не удалось открыть модуль "' .. obj.name .. '". Причина: файл пустой')
+                    print('Не удалось открыть модуль "' ..
+                              obj.name ..
+                              '". Причина: файл пустой')
                 else
                     -- Убираем пробельные символы в начале и конце
                     local trimmed = contents:match("^%s*(.-)%s*$")
                     if trimmed == "" then
-                        print('Не удалось открыть модуль "' .. obj.name .. '". Причина: файл содержит только пробелы')
+                        print(
+                            'Не удалось открыть модуль "' ..
+                                obj.name ..
+                                '". Причина: файл содержит только пробелы')
                     else
                         local result, loaded = pcall(decodeJson, trimmed)
                         if result then
                             obj.data = loaded
-                            print('Модуль "' .. obj.name .. '" инициализирован! (есть ваши кастомные данные)')
+                            print('Модуль "' .. obj.name ..
+                                      '" инициализирован! (есть ваши кастомные данные)')
                         else
-                            print('Не удалось открыть модуль "' .. obj.name .. '". Ошибка: ' .. tostring(loaded))
+                            print(
+                                'Не удалось открыть модуль "' ..
+                                    obj.name .. '". Ошибка: ' ..
+                                    tostring(loaded))
                         end
                     end
                 end
             else
-                print('Не удалось открыть модуль "' .. obj.name .. '". Ошибка: ' .. (errstr or "Unknown"))
+                print('Не удалось открыть модуль "' ..
+                          obj.name .. '". Ошибка: ' ..
+                          (errstr or "Unknown"))
             end
         else
-            print('Модуль "' .. obj.name .. '" инициализирован!')
+            print('Модуль "' .. obj.name ..
+                      '" инициализирован!')
         end
     end
 end
@@ -1384,7 +1404,6 @@ local MODULE = {
         time = 0,
         process_doklad = false
     },
-    -- mj (удалено)
     -- prison
     PumMenu = {Window = imgui.new.bool(), input = imgui.new.char[256]()},
     -- 9/10
@@ -1479,7 +1498,8 @@ local MODULE = {
     Help = {
         Window = imgui.new.bool(),
         filter = imgui.new.char[256]('') -- поле для ввода поиска
-    }
+    },
+    UstavView = {Window = imgui.new.bool()}
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
                               MODULE.Post.codes)
@@ -2996,27 +3016,31 @@ if hotkey_no_errors and not isMode('') then
     hotkey.Text.NoKey = u8 '< click and select keys >'
     hotkey.Text.WaitForKey = u8 '< wait keys >'
     function getNameKeysFrom(keys)
-    if type(keys) == "table" then
-        -- уже таблица
-        local keysStr = {}
-        for _, keyId in ipairs(keys) do
-            local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
-            table.insert(keysStr, keyName)
+        if type(keys) == "table" then
+            -- уже таблица
+            local keysStr = {}
+            for _, keyId in ipairs(keys) do
+                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or
+                                    ''
+                table.insert(keysStr, keyName)
+            end
+            return table.concat(keysStr, ' + ') or ''
+        elseif type(keys) == "string" then
+            local result, keysTable = pcall(decodeJson, keys)
+            if not result or type(keysTable) ~= 'table' then
+                return ''
+            end
+            local keysStr = {}
+            for _, keyId in ipairs(keysTable) do
+                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or
+                                    ''
+                table.insert(keysStr, keyName)
+            end
+            return table.concat(keysStr, ' + ') or ''
+        else
+            return ''
         end
-        return table.concat(keysStr, ' + ') or ''
-    elseif type(keys) == "string" then
-        local result, keysTable = pcall(decodeJson, keys)
-        if not result or type(keysTable) ~= 'table' then return '' end
-        local keysStr = {}
-        for _, keyId in ipairs(keysTable) do
-            local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
-            table.insert(keysStr, keyName)
-        end
-        return table.concat(keysStr, ' + ') or ''
-    else
-        return ''
     end
-end
     function loadHotkeys()
         MainMenuHotKey = hotkey.RegisterHotKey('Open MainMenu', false,
                                                safeDecodeJson(
@@ -3403,6 +3427,7 @@ function load_modules()
     load_module('rpgun')
     load_module('arz_veh')
     load_module('clear')
+    load_module('smart_charter')
     cacheVehicleMosels()
     if settings.general.piemenu then
         if pie_no_errors then
@@ -4101,6 +4126,10 @@ function initialize_commands()
     end)
 
     if not isMode('none') then
+        sampRegisterChatCommand("charter", function()
+            MODULE.UstavView.Window[0] = not MODULE.UstavView.Window[0]
+        end)
+
         sampRegisterChatCommand("mb", function(arg)
             if not MODULE.Binder.state.isActive then
                 if MODULE.Members.Window[0] then
@@ -6186,6 +6215,22 @@ function downloadFileFromUrlToPath(url, path)
                                message_color)
             load_update_news()
             playNotifySound()
+        elseif download_file == 'smart_charter' then
+            sampAddChatMessage(script_tag ..
+                                   ' {ffffff}Загрузка системы устава для сервера ' ..
+                                   message_color_hex ..
+                                   getServerName(getServerNumber()) .. ' [' ..
+                                   getServerNumber() ..
+                                   '] {ffffff}завершена успешно!',
+                               message_color)
+            sampAddChatMessage(script_tag ..
+                                   ' {ffffff}Теперь вы можете использовать команду ' ..
+                                   message_color_hex .. '/charter',
+                               message_color)
+            MODULE.Main.Window[0] = false
+            playNotifySound()
+            load_module('smart_charter')
+            _G.download_charter = false
         end
     end
     if IS_MOBILE then
@@ -11176,6 +11221,19 @@ function render_fractions_functions()
                     modules.smart_rptp.path, 'smart_rptp', 'умный срок')
                 imgui.EndTabItem()
             end
+            if imgui.BeginTabItem(fa.BOOK .. u8(' Система устава')) then
+                renderUstavEditor('Система устава', fa.BOOK,
+                                  'https://alexwright55.github.io/Prison-Helper/SmartCharter/' ..
+                                      getServerNumber() .. '/SmartCharter.json',
+                                  'системы устава',
+                                  modules.smart_charter.data,
+                                  function()
+                    save_module("smart_rptp")
+                end, 'Использование: /charter',
+                                  modules.smart_charter.path, 'smart_charter',
+                                  'система устава')
+                imgui.EndTabItem()
+            end
             imgui.EndTabBar()
         end
     else
@@ -12657,6 +12715,591 @@ if isMode('prison') then
     end
 end
 if isMode('prison') then
+    function renderUstavEditor()
+        local title = "Система устава"
+        local icon = fa.BOOK
+        local downloadPath =
+            'https://alexwright55.github.io/Prison-Helper/SmartCharter/' ..
+                getServerNumber() .. '/SmartCharter.json'
+        local editPopupTitle = "устава"
+        local data = modules.smart_charter and modules.smart_charter.data or {}
+        local saveFunction = function() save_module('smart_charter') end
+        local usageText = "Использование: /charter"
+        local pathDisplay =
+            modules.smart_charter and modules.smart_charter.path or ""
+        local download_file_name = 'smart_charter'
+        local download_item = "устав"
+
+        if imgui.BeginChild('##charter_gui',
+                            imgui.ImVec2(589 * settings.general.custom_dpi,
+                                         338 * settings.general.custom_dpi),
+                            true) then
+            -- Статус активности (загружены данные или нет)
+            if #data ~= 0 then
+                imgui.CenterColorText(imgui.ImVec4(0, 1, 0, 1),
+                                      u8("Активно - ") .. u8(usageText))
+            else
+                imgui.CenterColorText(imgui.ImVec4(1, 0.231, 0.231, 1),
+                                      u8(
+                                          "Неактивно - Загрузите ") ..
+                                          u8(download_item) ..
+                                          u8(
+                                              " из облака или заполните вручную"))
+            end
+            imgui.Separator()
+            imgui.SetCursorPosY(90 * settings.general.custom_dpi)
+            imgui.SetCursorPosX(220 * settings.general.custom_dpi)
+
+            -- Кнопка загрузки/обновления из облака
+            if imgui.Button(fa.DOWNLOAD ..
+                                (#data ~= 0 and
+                                    u8(' Обновить из облака ') or
+                                    u8(' Загрузить из облака ')) ..
+                                fa.DOWNLOAD .. '##charter') then
+                _G.download_charter = true
+                download_file = download_file_name
+                downloadFileFromUrlToPath(downloadPath, pathDisplay)
+                imgui.OpenPopup(
+                    fa.CIRCLE_INFO .. u8(' Оповещение ') ..
+                        fa.CIRCLE_INFO .. '##downloadcharter')
+            end
+            imgui.CenterText(u8(
+                                 'Данные из облака устарели или неактуальные?'))
+            imgui.CenterText(u8(
+                                 'Сообщите модераторам на нашем Discord сервере.'))
+            imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                   imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+            -- Попап с информацией о загрузке
+            if imgui.BeginPopupModal(fa.CIRCLE_INFO ..
+                                         u8(' Оповещение ') ..
+                                         fa.CIRCLE_INFO .. '##downloadcharter',
+                                     _, imgui.WindowFlags.NoCollapse +
+                                         imgui.WindowFlags.NoResize) then
+                if _G.download_charter then
+                    change_dpi()
+                    imgui.CenterText(u8('Идёт скачивание ') ..
+                                         u8(editPopupTitle) ..
+                                         u8(' для сервера ') ..
+                                         u8(getServerName(getServerNumber())) ..
+                                         " [" .. getServerNumber() .. ']')
+                    imgui.CenterText(u8(
+                                         'После успешной загрузки менюшка пропадёт и вы увидите сообщение в чате про завершение.'))
+                    imgui.Separator()
+                    imgui.CenterText(u8(
+                                         'Если прошло больше 10 секунд и ничего не происходит, то произошла ошибка загрузки'))
+                    imgui.CenterText(u8(
+                                         'Что можно сделать в случае ошибки:'))
+                    imgui.CenterText(u8(
+                                         '1) Заполнить данные вручную, нажав кнопку «Отредактировать»'))
+                    imgui.CenterText(u8(
+                                         '2) Вручную скачать json файлик из облака, и поместить его по пути:'))
+                    if #pathDisplay > 98 then
+                        local first_part = pathDisplay:sub(1, 98)
+                        local second_part = pathDisplay:sub(99, #pathDisplay)
+                        imgui.CenterText(u8(first_part))
+                        imgui.CenterText(u8(second_part))
+                    else
+                        imgui.CenterText(u8(pathDisplay))
+                    end
+                    imgui.Separator()
+                else
+                    MODULE.Main.Window[0] = false
+                    imgui.CloseCurrentPopup()
+                end
+                if imgui.Button(fa.CIRCLE_XMARK ..
+                                    u8(' Закрыть##close_charter'),
+                                imgui.ImVec2(300 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
+                    imgui.CloseCurrentPopup()
+                end
+                imgui.SameLine()
+                if imgui.Button(fa.GLOBE ..
+                                    u8(
+                                        ' Открыть облако##open_web_charter'),
+                                imgui.ImVec2(300 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
+                    openLink("https://github.com/AlexWright55/Prison-Helper")
+                    openLink(downloadPath)
+                    imgui.CloseCurrentPopup()
+                    MODULE.Main.Window[0] = false
+                end
+                imgui.EndPopup()
+            end
+            imgui.SetCursorPosY(220 * settings.general.custom_dpi)
+            imgui.SetCursorPosX(200 * settings.general.custom_dpi)
+
+            -- Кнопка ручного редактирования
+            if imgui.Button(fa.PEN_TO_SQUARE ..
+                                u8(
+                                    ' Отредактировать вручную ') ..
+                                fa.PEN_TO_SQUARE .. '##charter') then
+                imgui.OpenPopup(icon .. ' ' .. u8(title) .. ' ' .. icon ..
+                                    '##charter')
+            end
+            imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                   imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+            -- Окно редактирования (список глав и пунктов)
+            if imgui.BeginPopupModal(icon .. ' ' .. u8(title) .. ' ' .. icon ..
+                                         '##charter', _, imgui.WindowFlags
+                                         .NoCollapse +
+                                         imgui.WindowFlags.NoResize) then
+                change_dpi()
+                if imgui.BeginChild('##charter_edit',
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        368 * settings.general.custom_dpi), true) then
+                    for chapter_index, chapter in ipairs(data) do
+                        imgui.Columns(2)
+                        imgui.Text("> " .. u8(chapter.name))
+                        imgui.SetColumnWidth(-1,
+                                             515 * settings.general.custom_dpi)
+                        imgui.NextColumn()
+                        if imgui.Button(fa.PEN_TO_SQUARE .. '##charter' ..
+                                            chapter_index) then
+                            imgui.OpenPopup(
+                                u8(chapter.name) .. '##charter' .. chapter_index)
+                        end
+                        imgui.SameLine()
+                        if imgui.Button(fa.TRASH_CAN .. '##charter' ..
+                                            chapter_index) then
+                            imgui.OpenPopup(
+                                fa.TRIANGLE_EXCLAMATION ..
+                                    u8(' Предупреждение ') ..
+                                    fa.TRIANGLE_EXCLAMATION .. '##charter' ..
+                                    chapter_index)
+                        end
+                        imgui.SetNextWindowPos(
+                            imgui.ImVec2(sizeX / 2, sizeY / 2),
+                            imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                        -- Подтверждение удаления главы
+                        if imgui.BeginPopupModal(
+                            fa.TRIANGLE_EXCLAMATION ..
+                                u8(' Предупреждение ') ..
+                                fa.TRIANGLE_EXCLAMATION .. '##charter' ..
+                                chapter_index, _, imgui.WindowFlags.NoResize) then
+                            change_dpi()
+                            imgui.CenterText(u8(
+                                                 'Вы действительно хотите удалить пункт?'))
+                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                u8(
+                                                    ' Нет, отменить##cancel_delete_item_charter') ..
+                                                chapter_index,
+                                            imgui.ImVec2(
+                                                200 *
+                                                    settings.general.custom_dpi,
+                                                25 * settings.general.custom_dpi)) then
+                                imgui.CloseCurrentPopup()
+                            end
+                            imgui.SameLine()
+                            if imgui.Button(fa.TRASH_CAN ..
+                                                u8(
+                                                    ' Да, удалить##delete_item_charter') ..
+                                                chapter_index,
+                                            imgui.ImVec2(
+                                                200 *
+                                                    settings.general.custom_dpi,
+                                                25 * settings.general.custom_dpi)) then
+                                table.remove(data, chapter_index)
+                                saveFunction()
+                                imgui.CloseCurrentPopup()
+                            end
+                            imgui.End()
+                        end
+                        imgui.SetColumnWidth(-1,
+                                             100 * settings.general.custom_dpi)
+                        imgui.Columns(1)
+                        imgui.SetNextWindowPos(
+                            imgui.ImVec2(sizeX / 2, sizeY / 2),
+                            imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                        -- Окно редактирования пунктов внутри главы
+                        if imgui.BeginPopupModal(
+                            u8(chapter.name) .. '##charter' .. chapter_index, _,
+                            imgui.WindowFlags.NoCollapse +
+                                imgui.WindowFlags.NoResize) then
+                            change_dpi()
+                            if imgui.BeginChild('##charter_edititem',
+                                                imgui.ImVec2(
+                                                    589 *
+                                                        settings.general
+                                                            .custom_dpi, 368 *
+                                                        settings.general
+                                                            .custom_dpi), true) then
+                                if chapter.item then
+                                    for index, item in ipairs(chapter.item) do
+                                        imgui.Columns(2)
+                                        local display_text = (item.number and
+                                                                 item.number ..
+                                                                 " - " or "") ..
+                                                                 (item.text or
+                                                                     "")
+                                        imgui.Text("> " .. u8(display_text))
+                                        imgui.SetColumnWidth(-1, 515 *
+                                                                 settings.general
+                                                                     .custom_dpi)
+                                        imgui.NextColumn()
+                                        if imgui.Button(
+                                            fa.PEN_TO_SQUARE .. '##' ..
+                                                chapter_index .. '##charter' ..
+                                                index) then
+                                            _G.input_charter_number = imgui.new
+                                                                          .char[256](
+                                                                          u8(
+                                                                              item.number or
+                                                                                  ""))
+                                            _G.input_charter_text = imgui.new
+                                                                        .char[8192](
+                                                                        u8(
+                                                                            item.text or
+                                                                                ""))
+                                            imgui.OpenPopup(fa.PEN_TO_SQUARE ..
+                                                                u8(
+                                                                    " Редактирование статьи##") ..
+                                                                title ..
+                                                                chapter.name ..
+                                                                index ..
+                                                                chapter_index)
+                                        end
+                                        imgui.SetNextWindowPos(imgui.ImVec2(
+                                                                   sizeX / 2,
+                                                                   sizeY / 2),
+                                                               imgui.Cond.Always,
+                                                               imgui.ImVec2(0.5,
+                                                                            0.5))
+                                        -- Окно редактирования отдельной статьи
+                                        if imgui.BeginPopupModal(
+                                            fa.PEN_TO_SQUARE ..
+                                                u8(
+                                                    " Редактирование статьи##") ..
+                                                title .. chapter.name .. index ..
+                                                chapter_index, _,
+                                            imgui.WindowFlags.NoCollapse +
+                                                imgui.WindowFlags.NoResize +
+                                                imgui.WindowFlags.NoScrollbar) then
+                                            change_dpi()
+                                            if imgui.BeginChild(
+                                                '##charter_edititeminput',
+                                                imgui.ImVec2(
+                                                    489 *
+                                                        settings.general
+                                                            .custom_dpi, 200 *
+                                                        settings.general
+                                                            .custom_dpi), true) then
+                                                imgui.CenterText(u8(
+                                                                     'Номер статьи (например, 1.1):'))
+                                                imgui.PushItemWidth(478 *
+                                                                        settings.general
+                                                                            .custom_dpi)
+                                                imgui.InputText(u8(
+                                                                    '##input_charter_number'),
+                                                                _G.input_charter_number,
+                                                                256)
+                                                imgui.CenterText(u8(
+                                                                     'Текст статьи:'))
+                                                imgui.PushItemWidth(478 *
+                                                                        settings.general
+                                                                            .custom_dpi)
+                                                imgui.InputTextMultiline(u8(
+                                                                             '##input_charter_text'),
+                                                                         _G.input_charter_text,
+                                                                         8192,
+                                                                         imgui.ImVec2(
+                                                                             478 *
+                                                                                 settings.general
+                                                                                     .custom_dpi,
+                                                                             120))
+                                                imgui.EndChild()
+                                            end
+
+                                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                                u8(
+                                                                    ' Отмена##canceledititem_charter'),
+                                                            imgui.ImVec2(
+                                                                imgui.GetMiddleButtonX(
+                                                                    2), 0)) then
+                                                imgui.CloseCurrentPopup()
+                                            end
+                                            imgui.SameLine()
+                                            if imgui.Button(fa.FLOPPY_DISK ..
+                                                                u8(
+                                                                    ' Сохранить##saveedititem_charter'),
+                                                            imgui.ImVec2(
+                                                                imgui.GetMiddleButtonX(
+                                                                    2), 0)) then
+                                                local number = u8:decode(
+                                                                   ffi.string(
+                                                                       _G.input_charter_number))
+                                                local text = u8:decode(
+                                                                 ffi.string(
+                                                                     _G.input_charter_text))
+                                                if text ~= "" then
+                                                    item.number = number
+                                                    item.text = text
+                                                    saveFunction()
+                                                    imgui.CloseCurrentPopup()
+                                                else
+                                                    sampAddChatMessage(
+                                                        script_tag ..
+                                                            ' {ffffff}Текст статьи не может быть пустым!',
+                                                        message_color)
+                                                end
+                                            end
+                                            imgui.EndPopup()
+                                        end
+                                        imgui.SameLine()
+                                        if imgui.Button(
+                                            fa.TRASH_CAN .. '##' ..
+                                                chapter_index .. '##charter' ..
+                                                index) then
+                                            imgui.OpenPopup(
+                                                fa.TRIANGLE_EXCLAMATION ..
+                                                    u8(
+                                                        ' Предупреждение ') ..
+                                                    fa.TRIANGLE_EXCLAMATION ..
+                                                    '##charter' .. chapter_index ..
+                                                    '##' .. index)
+                                        end
+                                        imgui.SetNextWindowPos(imgui.ImVec2(
+                                                                   sizeX / 2,
+                                                                   sizeY / 2),
+                                                               imgui.Cond.Always,
+                                                               imgui.ImVec2(0.5,
+                                                                            0.5))
+                                        -- Подтверждение удаления статьи
+                                        if imgui.BeginPopupModal(
+                                            fa.TRIANGLE_EXCLAMATION ..
+                                                u8(
+                                                    ' Предупреждение ') ..
+                                                fa.TRIANGLE_EXCLAMATION ..
+                                                '##charter' .. chapter_index ..
+                                                '##' .. index, _,
+                                            imgui.WindowFlags.NoResize) then
+                                            change_dpi()
+                                            imgui.CenterText(u8(
+                                                                 'Вы действительно хотите удалить статью?'))
+                                            imgui.Separator()
+                                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                                u8(
+                                                                    ' Нет, отменить##canceldeleteitem_charter'),
+                                                            imgui.ImVec2(
+                                                                200 *
+                                                                    settings.general
+                                                                        .custom_dpi,
+                                                                25 *
+                                                                    settings.general
+                                                                        .custom_dpi)) then
+                                                imgui.CloseCurrentPopup()
+                                            end
+                                            imgui.SameLine()
+                                            if imgui.Button(fa.TRASH_CAN ..
+                                                                u8(
+                                                                    ' Да, удалить##yesdeleteitem_charter'),
+                                                            imgui.ImVec2(
+                                                                200 *
+                                                                    settings.general
+                                                                        .custom_dpi,
+                                                                25 *
+                                                                    settings.general
+                                                                        .custom_dpi)) then
+                                                table.remove(chapter.item, index)
+                                                saveFunction()
+                                                imgui.CloseCurrentPopup()
+                                            end
+                                            imgui.End()
+                                        end
+
+                                        imgui.SetColumnWidth(-1, 100 *
+                                                                 settings.general
+                                                                     .custom_dpi)
+                                        imgui.Columns(1)
+                                        imgui.Separator()
+                                    end
+                                end
+                                imgui.EndChild()
+                            end
+                            -- Кнопка добавления статьи
+                            if imgui.Button(fa.CIRCLE_PLUS ..
+                                                u8(
+                                                    ' Добавить новую статью##charter_add_subitem') ..
+                                                chapter_index, imgui.ImVec2(
+                                                imgui.GetMiddleButtonX(2), 25 *
+                                                    settings.general.custom_dpi)) then
+                                _G.input_charter_number =
+                                    imgui.new.char[256](u8(''))
+                                _G.input_charter_text =
+                                    imgui.new.char[8192](u8(''))
+                                imgui.OpenPopup(fa.CIRCLE_PLUS ..
+                                                    u8(
+                                                        ' Добавление новой статьи ') ..
+                                                    fa.CIRCLE_PLUS ..
+                                                    '##charter_add_subitem' ..
+                                                    chapter_index)
+                            end
+                            imgui.SetNextWindowPos(
+                                imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                            -- Окно добавления статьи
+                            if imgui.BeginPopupModal(fa.CIRCLE_PLUS ..
+                                                         u8(
+                                                             ' Добавление новой статьи ') ..
+                                                         fa.CIRCLE_PLUS ..
+                                                         '##charter_add_subitem' ..
+                                                         chapter_index, _,
+                                                     imgui.WindowFlags
+                                                         .NoCollapse +
+                                                         imgui.WindowFlags
+                                                             .NoResize +
+                                                         imgui.WindowFlags
+                                                             .NoScrollbar) then
+                                if imgui.BeginChild(
+                                    '##charter_edititeminput_add',
+                                    imgui.ImVec2(
+                                        489 * settings.general.custom_dpi,
+                                        150 * settings.general.custom_dpi), true) then
+                                    change_dpi()
+                                    imgui.CenterText(u8(
+                                                         'Номер статьи (например, 1.1):'))
+                                    imgui.PushItemWidth(478 *
+                                                            settings.general
+                                                                .custom_dpi)
+                                    imgui.InputText(u8(
+                                                        '##input_charter_number_add'),
+                                                    _G.input_charter_number, 256)
+                                    imgui.CenterText(u8(
+                                                         'Текст статьи:'))
+                                    imgui.PushItemWidth(478 *
+                                                            settings.general
+                                                                .custom_dpi)
+                                    imgui.InputTextMultiline(u8(
+                                                                 '##input_charter_text_add'),
+                                                             _G.input_charter_text,
+                                                             8192, imgui.ImVec2(
+                                                                 478 *
+                                                                     settings.general
+                                                                         .custom_dpi,
+                                                                 100))
+                                    imgui.EndChild()
+                                end
+                                if imgui.Button(fa.CIRCLE_XMARK ..
+                                                    u8(
+                                                        ' Отмена##' ..
+                                                            chapter_index ..
+                                                            'charter'),
+                                                imgui.ImVec2(
+                                                    imgui.GetMiddleButtonX(2), 0)) then
+                                    imgui.CloseCurrentPopup()
+                                end
+                                imgui.SameLine()
+                                if imgui.Button(fa.FLOPPY_DISK ..
+                                                    u8(
+                                                        ' Сохранить##' ..
+                                                            chapter_index ..
+                                                            'charter'),
+                                                imgui.ImVec2(
+                                                    imgui.GetMiddleButtonX(2), 0)) then
+                                    local number =
+                                        u8:decode(ffi.string(
+                                                      _G.input_charter_number))
+                                    local text =
+                                        u8:decode(ffi.string(
+                                                      _G.input_charter_text))
+                                    if text ~= "" then
+                                        if not chapter.item then
+                                            chapter.item = {}
+                                        end
+                                        table.insert(chapter.item, {
+                                            number = number,
+                                            text = text
+                                        })
+                                        saveFunction()
+                                        imgui.CloseCurrentPopup()
+                                    else
+                                        sampAddChatMessage(script_tag ..
+                                                               ' {ffffff}Текст статьи не может быть пустым!',
+                                                           message_color)
+                                    end
+                                end
+                                imgui.EndPopup()
+                            end
+                            imgui.SameLine()
+                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                u8(' Закрыть##close') ..
+                                                chapter_index .. 'charter',
+                                            imgui.ImVec2(
+                                                imgui.GetMiddleButtonX(2), 25 *
+                                                    settings.general.custom_dpi)) then
+                                imgui.CloseCurrentPopup()
+                            end
+                            imgui.EndPopup()
+                        end
+                        imgui.Separator()
+                    end
+                    imgui.EndChild()
+                end
+                -- Кнопка добавления новой главы
+                if imgui.Button(fa.CIRCLE_PLUS ..
+                                    u8(
+                                        ' Добавить пункт##charter_add'),
+                                imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                    _G.input_charter_name = imgui.new.char[512](u8(''))
+                    imgui.OpenPopup(fa.CIRCLE_PLUS ..
+                                        u8(
+                                            ' Добавление нового пункта ') ..
+                                        fa.CIRCLE_PLUS)
+                end
+                imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                       imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+                -- Окно добавления новой главы
+                if imgui.BeginPopupModal(fa.CIRCLE_PLUS ..
+                                             u8(
+                                                 ' Добавление нового пункта ') ..
+                                             fa.CIRCLE_PLUS, _,
+                                         imgui.WindowFlags.NoCollapse +
+                                             imgui.WindowFlags.NoResize +
+                                             imgui.WindowFlags.NoScrollbar) then
+                    imgui.PushItemWidth(400 * settings.general.custom_dpi)
+                    imgui.InputTextWithHint(u8('##input_charter_name'), u8(
+                                                "Введите название нового раздела..."),
+                                            _G.input_charter_name, 512)
+                    if imgui.Button(fa.CIRCLE_XMARK ..
+                                        u8(' Закрыть##charter_add'),
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.SameLine()
+                    if imgui.Button(fa.CIRCLE_PLUS ..
+                                        u8(' Добавить ##charter_add'),
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                        local name =
+                            u8:decode(ffi.string(_G.input_charter_name))
+                        if name ~= "" then
+                            table.insert(data, {name = name, item = {}})
+                            saveFunction()
+                            imgui.CloseCurrentPopup()
+                        else
+                            sampAddChatMessage(script_tag ..
+                                                   ' {ffffff}Название раздела не может быть пустым!',
+                                               message_color)
+                        end
+                    end
+                    imgui.EndPopup()
+                end
+                imgui.SameLine()
+                if imgui.Button(fa.CIRCLE_XMARK ..
+                                    u8(' Закрыть##charter_close'),
+                                imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                    imgui.CloseCurrentPopup()
+                end
+                imgui.EndPopup()
+            end
+            imgui.CenterText(u8(
+                                 'На случай отсутствия данных под ваш сервер'))
+            imgui.CenterText(u8(
+                                 'Для продвинутых пользователей'))
+            imgui.EndChild()
+        end
+    end
+end
+if isMode('prison') then
     imgui.OnFrame(function() return MODULE.PumMenu.Window[0] end,
                   function(player)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
@@ -13640,6 +14283,23 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
     imgui.End()
 end)
 
+imgui.OnFrame(function() return MODULE.UstavView.Window[0] end, function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(600 * settings.general.custom_dpi,
+                                         500 * settings.general.custom_dpi),
+                            imgui.Cond.FirstUseEver)
+    imgui.Begin(fa.BOOK .. u8" Устав организации " .. fa.BOOK,
+                MODULE.UstavView.Window,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
+    change_dpi()
+    renderCharterView()
+    if imgui.Button(fa.CIRCLE_XMARK .. u8(" Закрыть"),
+                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+        MODULE.UstavView.Window[0] = false
+    end
+    imgui.End()
+end)
 ------------------------------- OTHER FUNCTIONS --------------------------
 -- Функция для проверки, открыто ли хотя бы одно окно хелпера
 function isAnyHelperWindowOpen()
@@ -13650,8 +14310,8 @@ function isAnyHelperWindowOpen()
                MODULE.PumMenu.Window[0] or MODULE.GiveRank.Window[0] or
                MODULE.FastMenu.Window[0] or MODULE.LeaderFastMenu.Window[0] or
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
-               MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or MODULE.ClearList.Window[0] or
-               MODULE.Help.Window[0]
+               MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
+               MODULE.ClearList.Window[0] or MODULE.Help.Window[0]
 end
 
 -- Функция /time+F8
@@ -13774,6 +14434,55 @@ function removeDecimalPart(value)
     if not dotPosition then return value end
 
     return string.sub(value, 1, dotPosition - 1)
+end
+
+function renderCharterView()
+    if imgui.BeginChild("##charter_view_content", imgui.ImVec2(0, -30), true) then
+        -- Поле поиска
+        imgui.PushItemWidth(-1)
+        if not _G.charter_search_input then
+            _G.charter_search_input = imgui.new.char[256]("")
+        end
+        imgui.InputTextWithHint("##charter_search",
+                                u8("Поиск статьи..."),
+                                _G.charter_search_input, 256)
+        local search_text = u8:decode(ffi.string(_G.charter_search_input)):lower()
+        imgui.Separator()
+
+        local data = modules.smart_charter and modules.smart_charter.data or {}
+        if #data == 0 then
+            imgui.CenterText(u8("Нет данных. Загрузите устав из облака или добавьте вручную."))
+        else
+            for _, chapter in ipairs(data) do
+                local chapter_has_items = false
+                if chapter.item then
+                    for _, item in ipairs(chapter.item) do
+                        local article_title = (item.number and item.number .. " " or "")
+                        local search_match = search_text == "" or (item.number and item.number:lower():find(search_text, 1, true)) or (item.text and item.text:lower():find(search_text, 1, true))
+                        if search_match then
+                            chapter_has_items = true
+                            break
+                        end
+                    end
+                end
+                if chapter_has_items then
+                    if imgui.CollapsingHeader(u8(chapter.name)) then
+                        for _, item in ipairs(chapter.item) do
+                            local article_title = (item.number and item.number .. " " or "")
+                            local search_match = search_text == "" or (item.number and item.number:lower():find(search_text, 1, true)) or (item.text and item.text:lower():find(search_text, 1, true))
+                            if search_match then
+                                if imgui.CollapsingHeader(u8(article_title)) then
+                                    imgui.TextWrapped(u8(item.text or ""))
+                                end
+                                imgui.Separator()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        imgui.EndChild()
+    end
 end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
