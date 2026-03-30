@@ -3427,7 +3427,6 @@ function load_modules()
     load_module('rpgun')
     load_module('arz_veh')
     load_module('clear')
-    load_module('smart_charter')
     cacheVehicleMosels()
     if settings.general.piemenu then
         if pie_no_errors then
@@ -3441,6 +3440,17 @@ function load_modules()
             save_settings()
         end
     end
+
+    local charter_path
+    if isMode('prison') then
+        charter_path = config_dir .. "/SmartCharterPrison.json"
+    elseif isMode('army') then
+        charter_path = config_dir .. "/SmartCharterArmy.json"
+    end
+    modules.smart_charter.path = charter_path
+
+    load_module('smart_charter')
+
     if isMode('prison') then
         load_module('smart_rptp')
         if ((IS_MOBILE) and (settings.md.mobile_taser_button)) then
@@ -3877,6 +3887,11 @@ function initialize_commands()
         reload_script = true
         thisScript():reload()
     end)
+    sampRegisterChatCommand("reload", function()
+    sampAddChatMessage(script_tag .. ' {ffffff}Перезагрузка скрипта...', message_color)
+    reload_script = true
+    thisScript():reload()
+end)
     sampRegisterChatCommand("rpguns", function()
         if settings.general.rp_guns then
             MODULE.RPWeapon.Window[0] = not MODULE.RPWeapon.Window[0]
@@ -11221,9 +11236,24 @@ function render_fractions_functions()
                     modules.smart_rptp.path, 'smart_rptp', 'умный срок')
                 imgui.EndTabItem()
             end
+            if isMode('army') then
             if imgui.BeginTabItem(fa.BOOK .. u8(' Система устава')) then
                 renderUstavEditor('Система устава', fa.BOOK,
-                                  'https://alexwright55.github.io/Prison-Helper/SmartCharter/' ..
+                                  'https://alexwright55.github.io/Prison-Helper/SmartCharterArmy/' ..
+                                      getServerNumber() .. '/SmartCharter.json',
+                                  'системы устава',
+                                  modules.smart_charter.data,
+                                  function()
+                    save_module("smart_rptp")
+                end, 'Использование: /charter',
+                                  modules.smart_charter.path, 'smart_charter',
+                                  'система устава')
+                imgui.EndTabItem()
+        end
+    elseif isMode('prison') then
+            if imgui.BeginTabItem(fa.BOOK .. u8(' Система устава')) then
+                renderUstavEditor('Система устава', fa.BOOK,
+                                  'https://alexwright55.github.io/Prison-Helper/SmartCharterPrison/' ..
                                       getServerNumber() .. '/SmartCharter.json',
                                   'системы устава',
                                   modules.smart_charter.data,
@@ -11236,6 +11266,7 @@ function render_fractions_functions()
             end
             imgui.EndTabBar()
         end
+    end
     else
         if imgui.BeginChild('##assist',
                             imgui.ImVec2(589 * settings.general.custom_dpi,
@@ -12718,9 +12749,12 @@ if isMode('prison') then
     function renderUstavEditor()
         local title = "Система устава"
         local icon = fa.BOOK
-        local downloadPath =
-            'https://alexwright55.github.io/Prison-Helper/SmartCharter/' ..
-                getServerNumber() .. '/SmartCharter.json'
+        local downloadPath
+    if isMode('prison') then
+        downloadPath = 'https://alexwright55.github.io/Prison-Helper/SmartCharterPrison/' .. getServerNumber() .. '/SmartCharter.json'
+    elseif isMode('army') then
+        downloadPath = 'https://alexwright55.github.io/Prison-Helper/SmartCharterArmy/' .. getServerNumber() .. '/SmartCharter.json'
+    end
         local editPopupTitle = "устава"
         local data = modules.smart_charter and modules.smart_charter.data or {}
         local saveFunction = function() save_module('smart_charter') end
