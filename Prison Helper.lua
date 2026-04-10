@@ -3,7 +3,7 @@ script_name("Prison Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
-script_version("v0.0.4")
+script_version("v0.0.5")
 ----------------------------------------------- INIT ---------------------------------------------
 local worked_dir = getWorkingDirectory():gsub('\\', '/')
 local IS_MOBILE = MONET_VERSION ~= nil
