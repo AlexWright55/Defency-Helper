@@ -1,5 +1,5 @@
 ---@diagnostic disable: undefined-global, lowercase-global
-script_name("Prison Helper")
+script_name("Defency Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
@@ -12,16 +12,16 @@ print('Версия: ' .. thisScript().version)
 print('Платформа: ' .. (IS_MOBILE and 'MOBILE' or 'PC'))
 print('Рабочая папка: ' .. worked_dir)
 ------------------------------------------ INIT CRASH INFO ---------------------------------------
-if not doesFileExist(worked_dir .. '/.Prison Helper Error Handler.lua') then
-    local helper_prefix = '/.Prison Helper '
+if not doesFileExist(worked_dir .. '/.Defency Helper Error Handler.lua') then
+    local helper_prefix = '/.Defency Helper '
     local file_path = worked_dir .. helper_prefix .. 'Error Handler.lua'
     local content = [[
 function onSystemMessage(msg, type, script)
-	if script and script.name == 'Prison Helper' and msg and ((msg:find('stack traceback')) or (type == 3 and not msg:find('Script died due to an error'))) then
+	if script and script.name == 'Defency Helper' and msg and ((msg:find('stack traceback')) or (type == 3 and not msg:find('Script died due to an error'))) then
 		local errorMessage = ('{ffffff}Произошла непредусмотренная ошибка в работе скрипта, из-за чего он был отключён!\n\n' ..
 		'Отправьте скриншот и log в {ff9900}тех.поддержку MTG MODS (Telegram/Discord/BlastHack){ffffff}.\n\n' ..
 		'Детали возникшей ошибки:\n{ff6666}' .. msg)
-		sampShowDialog(123123, '{009EFF}Prison Helper [' .. script.version .. ']', errorMessage, '{009EFF}Закрыть', '', 0)
+		sampShowDialog(123123, '{009EFF}Defency Helper [' .. script.version .. ']', errorMessage, '{009EFF}Закрыть', '', 0)
 	end
 end
 	]]
@@ -58,7 +58,7 @@ local hotkey_no_errors, hotkey = pcall(require, 'mimgui_hotkeys')
 local pie_no_errors, pie = pcall(require, IS_MOBILE and 'imgui_piemenu' or
                                      'mimgui_piemenu_mod')
 local sizeX, sizeY = getScreenResolution()
-local script_tag = '[Prison Helper]'
+local script_tag = '[Defency Helper]'
 local frameCount = 0
 local fps = 0
 local lastTime = os.clock()
@@ -107,7 +107,7 @@ math.randomseed(os.time())
 scene_active = false
 local status = false
 -------------------------------------------- JSON SETTINGS ---------------------------------------
-local config_dir = worked_dir .. '/Prison Helper'
+local config_dir = worked_dir .. '/Defency Helper'
 local settings = {}
 local default_settings = {
     general = {
@@ -354,7 +354,7 @@ local modules = {
                     }, {
                         cmd = 'time',
                         description = 'Посмотреть время',
-                        text = '/me взглянул{sex} на часы с гравировкой Prison Helper и посмотрел{sex} время&/time&/do На часах видно время {get_time}.',
+                        text = '/me взглянул{sex} на часы с гравировкой Defency Helper и посмотрел{sex} время&/time&/do На часах видно время {get_time}.',
                         arg = '',
                         enable = true,
                         waiting = '2'
@@ -3226,7 +3226,7 @@ function processWeaponChange(oldGun, nowGun)
     if not modules.rpgun.data.gunActions.off[oldGun] or
         not modules.rpgun.data.gunActions.on[nowGun] then
         sampAddChatMessage(
-            '[Prison Helper] {ffffff}Инициализация оружия...',
+            '[Defency Helper] {ffffff}Инициализация оружия...',
             message_color)
         initialize_guns()
         return
@@ -3494,7 +3494,7 @@ function welcome_message()
     sampAddChatMessage(script_tag ..
                            ' {ffffff}Загрузка хелпера прошла успешно!',
                        message_color)
-    show_arz_notify('info', 'Prison Helper',
+    show_arz_notify('info', 'Defency Helper',
                     "Загрузка хелпера прошла успешно!",
                     3000)
     print(
@@ -4953,7 +4953,7 @@ function getNameOfARZVehicleModel(id)
                        message_color)
     download_file = 'arz_veh'
     downloadFileFromUrlToPath(
-        'https://alexwright55.github.io/Prison-Helper/SmartVEH/Vehicles' ..
+        'https://alexwright55.github.io/Defency-Helper/SmartVEH/Vehicles' ..
             ((tonumber(getServerNumber()) > 300) and 'Rodina.json' or '.json'),
         modules.arz_veh.path)
     return 'транспортного средства'
@@ -6229,7 +6229,7 @@ function downloadFileFromUrlToPath(url, path)
             sampAddChatMessage(script_tag ..
                                    ' {ffffff}Загрузка новой версии хелпера успешно завершена! Перезагрузка..',
                                message_color)
-            os.remove(worked_dir .. "Prison Helper.lua")
+            os.remove(worked_dir .. "Defency Helper.lua")
             reload_script = true
             thisScript():unload()
         elseif download_file == 'smart_rptp' then
@@ -6331,7 +6331,7 @@ function check_update()
                        message_color)
     download_file = 'update'
     downloadFileFromUrlToPath(
-        'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update.json',
+        'https://alexwright55.github.io/Defency-Helper/Defency%20Helper/Update.json',
         config_dir .. "/Update.json")
 end
 function check_resourses()
@@ -6341,14 +6341,14 @@ function check_resourses()
     if not doesFileExist(config_dir .. '/Resourse/logo.png') then
         print('Подгружаю логотип хелпера...')
         downloadFileFromUrlToPath(
-            'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Resourse/logo.png',
+            'https://alexwright55.github.io/Defency-Helper/Defency%20Helper/Resourse/logo.png',
             config_dir .. '/Resourse/logo.png')
     end
     if not doesFileExist(config_dir .. "/Resourse/notify.mp3") then
         print(
             'Подгружаю звук для оповещений хелпера...')
         downloadFileFromUrlToPath(
-            'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Resourse/notify.mp3',
+            'https://alexwright55.github.io/Defency-Helper/Defency%20Helper/Resourse/notify.mp3',
             config_dir .. "/Resourse/notify.mp3")
     end
     if not doesFileExist(modules.arz_veh.path) then
@@ -6356,7 +6356,7 @@ function check_resourses()
             'Подгружаю список всех кастомных т/с для определенения моделей...')
         download_file = 'arz_veh'
         downloadFileFromUrlToPath(
-            'httpshttps://alexwright55.github.io/Prison-Helper/SmartVEH/Vehicles' ..
+            'httpshttps://alexwright55.github.io/Defency-Helper/SmartVEH/Vehicles' ..
                 ((tonumber(getServerNumber()) > 300) and 'Rodina.json' or
                     '.json'), modules.arz_veh.path)
     end
@@ -6589,7 +6589,7 @@ function import_data_from_old_helpers()
                     '{ffffff} успешно завершен!', message_color)
         end
     end
-    safeMove("Prison Helper", "SmartRPTP.json", modules.smart_rptp.path)
+    safeMove("Defency Helper", "SmartRPTP.json", modules.smart_rptp.path)
 end
 
 function deleteHelperData(checker)
@@ -6848,7 +6848,7 @@ function sampev.onSendGiveDamage(playerId, damage, weapon, bodypart)
             getServerNumber() == '28') or
             sampGetPlayerNickname(playerId):find('%[28%]Flip_Anderson') then
             sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Flip_Anderson - это разработчик Prison Helper!',
+                                   ' {ffffff}Flip_Anderson - это разработчик Defency Helper!',
                                message_color)
             sampAddChatMessage(script_tag ..
                                    ' {ffffff}Не нужно наносить урон разработчику хелпера, АСТАНАВИТЕСЬ :sob: :sob: :sob:',
@@ -6873,7 +6873,7 @@ function sampev.onServerMessage(color, text)
                                ' {ffffff}Кто-то упомянул вас в чате!',
                            message_color)
         playNotifySound()
-        show_arz_notify('info', 'Prison Helper',
+        show_arz_notify('info', 'Defency Helper',
                         "Вас кто-то упомянул в чате!", 5000)
     end
 
@@ -7587,7 +7587,7 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 end
                 lua_thread.create(function()
                     sampAddChatMessage(
-                        '[Prison Helper | Ассистент] {ffffff}Запускаю отыгровку проверки документов игрока...',
+                        '[Defency Helper | Ассистент] {ffffff}Запускаю отыгровку проверки документов игрока...',
                         message_color)
                     MODULE.Binder.state.isActive = true
                     wait(500)
@@ -7870,7 +7870,7 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
     imgui.Begin(fa.GEARS ..
-                    u8 ' Первоначальная настройка Prison Helper ' ..
+                    u8 ' Первоначальная настройка Defency Helper ' ..
                     fa.GEARS, MODULE.Initial.Window,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoScrollbar +
                     imgui.WindowFlags.AlwaysAutoResize)
@@ -7896,7 +7896,7 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
                 imgui.CenterTextDisabled(u8(
                                              'На время включите VPN для подгрузки нужных файлов, либо скачайте вручную'))
                 imgui.CenterTextDisabled(u8(
-                                             'https://github.com/AlexWright55/Prison-Helper/raw/refs/heads/main/Prison%20Helper.lua'))
+                                             'https://github.com/AlexWright55/Defency-Helper/raw/refs/heads/main/Defency%20Helper.lua'))
                 imgui.EndChild()
             end
         end
@@ -8153,7 +8153,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
     imgui.SetNextWindowSize(imgui.ImVec2(600 * settings.general.custom_dpi,
                                          430 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
-    imgui.Begin(getHelperIcon() .. " Prison Helper " .. getHelperIcon() ..
+    imgui.Begin(getHelperIcon() .. " Defency Helper " .. getHelperIcon() ..
                     "##main", MODULE.Main.Window,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
     change_dpi()
@@ -8179,7 +8179,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                     imgui.CenterTextDisabled(u8(
                                                  'На время включите VPN для подгрузки нужных файлов, либо скачайте вручную'))
                     imgui.CenterTextDisabled(u8(
-                                                 'https://github.com/AlexWright55/Prison-Helper'))
+                                                 'https://github.com/AlexWright55/Defency-Helper'))
                     imgui.EndChild()
                 end
             end
@@ -10145,7 +10145,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                 imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
                     download_file = 'news'
                     downloadFileFromUrlToPath(
-                        'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update-info.json',
+                        'https://alexwright55.github.io/Defency-Helper/Defency%20Helper/Update-info.json',
                         modules.update_info.path)
                 end
 
@@ -10188,7 +10188,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                 download_file = 'helper'
                                 downloadFileFromUrlToPath(latest.download_url,
                                                           worked_dir ..
-                                                              "/Prison Helper.lua")
+                                                              "/Defency Helper.lua")
                             end
                         end
                     else
@@ -10564,7 +10564,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                     imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar) then
                     change_dpi()
                     imgui.CenterText(
-                        u8 'Вы действительно хотите удалить Prison Helper?')
+                        u8 'Вы действительно хотите удалить Defency Helper?')
                     imgui.CenterText(
                         u8 'Так-же будут удалены все данные (настройки, команды, заметки)')
                     imgui.Separator()
@@ -11484,7 +11484,7 @@ function render_fractions_functions()
                 renderSmartGUI(
                     'Система умного продления срока',
                     fa.TICKET,
-                    'https://alexwright55.github.io/Prison-Helper/SmartRPTP/' ..
+                    'https://alexwright55.github.io/Defency-Helper/SmartRPTP/' ..
                         getServerNumber() .. '/SmartRPTP.json',
                     'системы умного срока',
                     modules.smart_rptp.data,
@@ -11497,7 +11497,7 @@ function render_fractions_functions()
                 if imgui.BeginTabItem(fa.BOOK ..
                                           u8(' Система устава')) then
                     renderUstavEditor('Система устава', fa.BOOK,
-                                      'https://alexwright55.github.io/Prison-Helper/SmartCharterArmy/' ..
+                                      'https://alexwright55.github.io/Defency-Helper/SmartCharterArmy/' ..
                                           getServerNumber() ..
                                           '/SmartCharter.json',
                                       'системы устава',
@@ -11514,7 +11514,7 @@ function render_fractions_functions()
                 if imgui.BeginTabItem(fa.BOOK ..
                                           u8(' Система устава')) then
                     renderUstavEditor('Система устава', fa.BOOK,
-                                      'https://alexwright55.github.io/Prison-Helper/SmartCharterPrison/' ..
+                                      'https://alexwright55.github.io/Defency-Helper/SmartCharterDefency/' ..
                                           getServerNumber() ..
                                           '/SmartCharter.json',
                                       'системы устава',
@@ -12194,7 +12194,7 @@ if not (isMode('ghetto') or isMode('mafia')) then
                          settings.windows_pos.patrool_menu.y),
             imgui.Cond.FirstUseEver)
         imgui.Begin(
-            getHelperIcon() .. u8 " Prison Helper " .. getHelperIcon() ..
+            getHelperIcon() .. u8 " Defency Helper " .. getHelperIcon() ..
                 '##post_info_menu', MODULE.Post.Window,
             imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                 imgui.WindowFlags.AlwaysAutoResize)
@@ -12210,7 +12210,7 @@ if not (isMode('ghetto') or isMode('mafia')) then
             imgui.SameLine()
             if imgui.SmallButton(fa.GEAR) then
                 imgui.OpenPopup(fa.BUILDING_SHIELD ..
-                                    u8(' Prison Helper##post_select_code'))
+                                    u8(' Defency Helper##post_select_code'))
             end
             imgui.Separator()
             if imgui.Button(fa.WALKIE_TALKIE .. u8(' Доклад##post'),
@@ -12294,7 +12294,7 @@ if not (isMode('ghetto') or isMode('mafia')) then
             end
         end
         if imgui.BeginPopup(fa.BUILDING_SHIELD ..
-                                u8(' Prison Helper##post_select_code'), _,
+                                u8(' Defency Helper##post_select_code'), _,
                             imgui.WindowFlags.NoCollapse +
                                 imgui.WindowFlags.NoResize) then
             change_dpi()
@@ -12322,7 +12322,7 @@ if isMode('prison') then
         imgui.SetNextWindowPos(imgui.ImVec2(settings.windows_pos.taser.x,
                                             settings.windows_pos.taser.y),
                                imgui.Cond.FirstUseEver)
-        imgui.Begin(" Prison Helper##MODULE.Taser.Window", MODULE.Taser.Window,
+        imgui.Begin(" Defency Helper##MODULE.Taser.Window", MODULE.Taser.Window,
                     imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                         imgui.WindowFlags.NoBackground +
                         imgui.WindowFlags.NoTitleBar +
@@ -12431,7 +12431,7 @@ if isMode('prison') then
                                     title,
                                 imgui.ImVec2(300 * settings.general.custom_dpi,
                                              25 * settings.general.custom_dpi)) then
-                    openLink("https://github.com/AlexWright55/Prison-Helper")
+                    openLink("https://github.com/AlexWright55/Defency-Helper")
                     openLink(downloadPath)
                     imgui.CloseCurrentPopup()
                     MODULE.Main.Window[0] = false
@@ -13015,11 +13015,11 @@ if isMode('prison') then
         local downloadPath
         if isMode('prison') then
             downloadPath =
-                'https://alexwright55.github.io/Prison-Helper/SmartCharterPrison/' ..
+                'https://alexwright55.github.io/Defency-Helper/SmartCharterPrison/' ..
                     getServerNumber() .. '/SmartCharter.json'
         elseif isMode('army') then
             downloadPath =
-                'https://alexwright55.github.io/Prison-Helper/SmartCharterArmy/' ..
+                'https://alexwright55.github.io/Defency-Helper/SmartCharterArmy/' ..
                     getServerNumber() .. '/SmartCharter.json'
         end
         local editPopupTitle = "устава"
@@ -13119,7 +13119,7 @@ if isMode('prison') then
                                         ' Открыть облако##open_web_charter'),
                                 imgui.ImVec2(300 * settings.general.custom_dpi,
                                              25 * settings.general.custom_dpi)) then
-                    openLink("https://github.com/AlexWright55/Prison-Helper")
+                    openLink("https://github.com/AlexWright55/Defency-Helper")
                     openLink(downloadPath)
                     imgui.CloseCurrentPopup()
                     MODULE.Main.Window[0] = false
@@ -13736,7 +13736,7 @@ if (settings.player_info.fraction_rank_number >= 9) then
                   function(player)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                                imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
-        imgui.Begin(getHelperIcon() .. " Prison Helper " .. getHelperIcon() ..
+        imgui.Begin(getHelperIcon() .. " Defency Helper " .. getHelperIcon() ..
                         "##rank", MODULE.GiveRank.Window,
                     imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                         imgui.WindowFlags.NoScrollbar +
@@ -13797,7 +13797,7 @@ imgui.OnFrame(function() return MODULE.FastMenuButton.Window[0] end,
                                         settings.windows_pos
                                             .mobile_fastmenu_button.y),
                            imgui.Cond.FirstUseEver)
-    imgui.Begin(fa.BUILDING_SHIELD .. " Prison Helper##fast_menu_button",
+    imgui.Begin(fa.BUILDING_SHIELD .. " Defency Helper##fast_menu_button",
                 MODULE.FastMenuButton.Window,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                     imgui.WindowFlags.NoTitleBar +
@@ -13986,7 +13986,7 @@ imgui.OnFrame(function() return MODULE.Update.Window[0] end, function(player)
         -- Убрана проверка на VIP
         download_file = 'helper'
         downloadFileFromUrlToPath(MODULE.Update.url,
-                                  worked_dir .. "/Prison Helper.lua")
+                                  worked_dir .. "/Defency Helper.lua")
         MODULE.Update.Window[0] = false
     end
     imgui.End()
@@ -14295,7 +14295,7 @@ imgui.OnFrame(function() return MODULE.CommandStop.Window[0] end,
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY - 50 *
                                             settings.general.custom_dpi),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.Begin(getHelperIcon() .. " Prison Helper " .. getHelperIcon() ..
+    imgui.Begin(getHelperIcon() .. " Defency Helper " .. getHelperIcon() ..
                     "##MODULE.CommandStop.Window", _,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                     imgui.WindowFlags.NoScrollbar +
@@ -14318,7 +14318,7 @@ imgui.OnFrame(function() return MODULE.CommandPause.Window[0] end,
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY - 50 *
                                             settings.general.custom_dpi),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.Begin(getHelperIcon() .. " Prison Helper " .. getHelperIcon() ..
+    imgui.Begin(getHelperIcon() .. " Defency Helper " .. getHelperIcon() ..
                     "##MODULE.CommandPause.Window", _,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                     imgui.WindowFlags.NoScrollbar +
@@ -14517,7 +14517,7 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
     imgui.SetNextWindowSize(imgui.ImVec2(700 * settings.general.custom_dpi, 0),
                             imgui.Cond.FirstUseEver)
     imgui.Begin(fa.CIRCLE_QUESTION ..
-                    u8(" Список команд Prison Helper ") ..
+                    u8(" Список команд Defency Helper ") ..
                     fa.CIRCLE_QUESTION, MODULE.Help.Window, imgui.WindowFlags
                     .NoCollapse + imgui.WindowFlags.AlwaysAutoResize)
     change_dpi()
