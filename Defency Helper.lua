@@ -3,7 +3,7 @@ script_name("Defency Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
-script_version("v0.0.5")
+script_version("v1.0.5")
 ----------------------------------------------- INIT ---------------------------------------------
 local worked_dir = getWorkingDirectory():gsub('\\', '/')
 local IS_MOBILE = MONET_VERSION ~= nil
@@ -7896,7 +7896,7 @@ imgui.OnFrame(function() return MODULE.Initial.Window[0] end, function(player)
                 imgui.CenterTextDisabled(u8(
                                              'На время включите VPN для подгрузки нужных файлов, либо скачайте вручную'))
                 imgui.CenterTextDisabled(u8(
-                                             'https://github.com/AlexWright55/Defency-Helper/raw/refs/heads/main/Defency%20Helper.lua'))
+                                             'https://alexwright55.github.io/Defency-Helper/Defency%20Helper.lua'))
                 imgui.EndChild()
             end
         end

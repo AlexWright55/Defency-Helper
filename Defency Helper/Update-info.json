@@ -1,6 +1,14 @@
 {
   "news": [
     {
+      "title": "Обновление 6",
+      "version": "v1.0.5",
+      "date": "10.04.2026",
+      "text": [
+        "- Обновлено название скрипта с Prison Helper на Defency Helper"
+      ]
+    },
+    {
       "title": "Обновление 5",
       "version": "v0.0.5",
       "date": "10.04.2026",
