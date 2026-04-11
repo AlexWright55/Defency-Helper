@@ -3,7 +3,7 @@ script_name("Defency Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
-script_version("v1.0.5")
+script_version("v1.0.6")
 ----------------------------------------------- INIT ---------------------------------------------
 local worked_dir = getWorkingDirectory():gsub('\\', '/')
 local IS_MOBILE = MONET_VERSION ~= nil
@@ -106,6 +106,9 @@ local month = {
 math.randomseed(os.time())
 scene_active = false
 local status = false
+local autodesc_processing = false
+local autodesc_target = ""
+local autodesc_timeout = 0
 -------------------------------------------- JSON SETTINGS ---------------------------------------
 local config_dir = worked_dir .. '/Defency Helper'
 local settings = {}
@@ -245,9 +248,7 @@ function isMode(mode_type) return settings.general.fraction_mode == mode_type en
 load_settings()
 
 local function safeDecodeJson(str)
-    if type(str) == "table" then
-        return str
-    end
+    if type(str) == "table" then return str end
     if type(str) ~= "string" or str == "" then return {} end
     local trimmed = str:match("^%s*(.-)%s*$")
     if not trimmed or trimmed == "" then return {} end
@@ -461,7 +462,7 @@ local modules = {
                         arg = '{arg_id}',
                         enable = true,
                         waiting = '4.5',
-                        in_fastmenu = false
+                        in_fastmenu = true
                     }, {
                         cmd = 'giveplatoon',
                         description = 'Назначить взвод игроку',
@@ -469,7 +470,7 @@ local modules = {
                         arg = '{arg_id}',
                         enable = true,
                         waiting = '2',
-                        in_fastmenu = false
+                        in_fastmenu = true
                     }, {
                         cmd = 'take',
                         description = 'Изьять предметы у игрока (6+)',
@@ -484,7 +485,8 @@ local modules = {
                         text = '/fractionrp {arg_id}',
                         arg = '{arg_id}',
                         enable = true,
-                        waiting = '3.5'
+                        waiting = '3.5',
+                        in_fastmenu = true
                     }, {
                         cmd = 'punish',
                         description = 'Повысить уровень наказания.',
@@ -630,9 +632,7 @@ local modules = {
     piemenu = {
         name = 'Круговое меню',
         path = config_dir .. "/PieMenu.json",
-        data = {
-            my = {}
-        }
+        data = {my = {}}
     },
     notes = {
         name = 'Заметки',
@@ -960,8 +960,7 @@ local modules = {
                     enable = false,
                     rpTake = 1,
                     waiting = '3'
-                },
-                {
+                }, {
                     id = 71,
                     name = 'пистолет Desert Eagle Steel',
                     enable = true,
@@ -1224,6 +1223,18 @@ local modules = {
         name = 'Очистка чата',
         path = config_dir .. "/Clear.json",
         data = {}
+    },
+    autodesc = {
+        name = 'Авто-описание',
+        path = config_dir .. "/AutoDesc.json",
+        data = {
+            active = true,
+            correctionIndex = -1,
+            showMessages = true,
+            sets = {},
+            lastDesc = "",
+            lastTime = 0
+        }
     }
 }
 function load_module(key)
@@ -1512,10 +1523,7 @@ local MODULE = {
         edit_buffer = imgui.new.char[256](''),
         edit_window = imgui.new.bool(false)
     },
-    Help = {
-        Window = imgui.new.bool(),
-        filter = imgui.new.char[256]('')
-    },
+    Help = {Window = imgui.new.bool(), filter = imgui.new.char[256]('')},
     UstavView = {Window = imgui.new.bool()},
     InfoWindow = {Window = imgui.new.bool()},
     Snake = {
@@ -1535,6 +1543,13 @@ local MODULE = {
         updateDelay = 200,
         updateThread = nil,
         segmentsToGrow = 1
+    },
+    AutoDesc = {
+        Window = imgui.new.bool(),
+        inputDesc = imgui.new.char[256](),
+        inputSkins = imgui.new.char[256](),
+        inputDeleteAfter = imgui.new.bool(false),
+        selectedItem = 0
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -3325,6 +3340,10 @@ function main()
     MODULE.Update.news = {}
     load_update_news()
 
+    if autodesc_processing and os.time() > autodesc_timeout then
+        autodesc_processing = false
+    end
+
     while true do
         wait(0)
 
@@ -3341,6 +3360,44 @@ function main()
 
         if MODULE.Post.active then
             MODULE.Post.time = os.difftime(os.time(), MODULE.Post.start_time)
+        end
+
+        -- AutoDesc: проверка смены скина
+        if modules.autodesc and modules.autodesc.data.active then
+            local data = modules.autodesc.data
+            local currentSkin = getCharModel(PLAYER_PED)
+            local neededDesc = nil
+            local foundConfig = false
+
+            for _, set in ipairs(data.sets) do
+                for _, id in ipairs(set.skins) do
+                    if id == currentSkin then
+                        neededDesc = set.text
+                        foundConfig = true
+                        break
+                    end
+                end
+                if foundConfig then break end
+            end
+
+            if not foundConfig then
+                if data.lastDesc and data.lastDesc ~= "" then
+                    for _, set in ipairs(data.sets) do
+                        if set.text == data.lastDesc and set.deleteAfter then
+                            neededDesc = ""
+                            break
+                        end
+                    end
+                end
+            end
+
+            if neededDesc ~= nil and data.lastDesc ~= neededDesc then
+                local timeSince = os.time() - data.lastTime
+                if timeSince > 65 or neededDesc == "" then
+                    -- запускаем смену описания
+                    autodesc_start_change(neededDesc)
+                end
+            end
         end
 
         if (settings.general.rp_guns) and
@@ -3446,6 +3503,7 @@ function load_modules()
     load_module('rpgun')
     load_module('arz_veh')
     load_module('clear')
+    load_module('autodesc')
     cacheVehicleMosels()
     if settings.general.piemenu then
         if pie_no_errors then
@@ -3505,11 +3563,11 @@ function welcome_message()
                                message_color_hex ..
                                getNameKeysFrom(settings.general.bind_mainmenu) ..
                                ' {ffffff}или введите команду ' ..
-                               message_color_hex .. '/ph', message_color)
+                               message_color_hex .. '/dh', message_color)
     else
         sampAddChatMessage(script_tag ..
                                ' {ffffff}Чтоб открыть меню хелпера введите команду ' ..
-                               message_color_hex .. '/ph', message_color)
+                               message_color_hex .. '/dh', message_color)
     end
 end
 function register_command(chat_cmd, cmd_arg, cmd_text, cmd_waiting)
@@ -3882,7 +3940,7 @@ function find_and_use_command(cmd, cmd_arg)
     playNotifySound()
 end
 function initialize_commands()
-    sampRegisterChatCommand("ph", function()
+    sampRegisterChatCommand("dh", function()
         MODULE.Main.Window[0] = not MODULE.Main.Window[0]
     end)
     sampRegisterChatCommand("binder", function()
@@ -3923,7 +3981,7 @@ function initialize_commands()
             MODULE.RPWeapon.Window[0] = not MODULE.RPWeapon.Window[0]
         else
             sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Включите функцию "RP отыгровка оружия" в /ph -> Функции ' ..
+                                   ' {ffffff}Включите функцию "RP отыгровка оружия" в /dh -> Функции ' ..
                                    settings.player_info.fraction_tag,
                                message_color)
         end
@@ -4156,7 +4214,7 @@ function initialize_commands()
 
     sampRegisterChatCommand("ts", function() print_scr_time() end)
 
-    sampRegisterChatCommand("phelp", function()
+    sampRegisterChatCommand("dhelp", function()
         MODULE.Help.Window[0] = not MODULE.Help.Window[0]
     end)
 
@@ -4183,6 +4241,13 @@ function initialize_commands()
                                    " {ffffff}Окно змейки уже открыто.",
                                message_color)
         end
+    end)
+
+    sampRegisterChatCommand("autodesc", function()
+        MODULE.AutoDesc.Window[0] = not MODULE.AutoDesc.Window[0]
+    end)
+    sampRegisterChatCommand("adesc", function()
+        MODULE.AutoDesc.Window[0] = not MODULE.AutoDesc.Window[0]
     end)
 
     if not isMode('none') then
@@ -4260,7 +4325,7 @@ function initialize_commands()
                         MODULE.PumMenu.Window[0] = true
                     else
                         sampAddChatMessage(script_tag ..
-                                               ' {ffffff}Сначало загрузите/заполните систему умного срока в /ph - Функции ' ..
+                                               ' {ffffff}Сначало загрузите/заполните систему умного срока в /dh - Функции ' ..
                                                settings.player_info.fraction_tag,
                                            message_color)
                         playNotifySound()
@@ -4369,7 +4434,7 @@ function getAllCommands()
 
     local standard = {
         {
-            cmd = "ph",
+            cmd = "dh",
             desc = "Открыть главное меню хелпера"
         },
         {
@@ -4414,7 +4479,8 @@ function getAllCommands()
         }, {
             cmd = "ts",
             desc = "Отправить /time и сделать скриншот"
-        }, {cmd = "reload", desc = "Перезагрузить хелпер"}
+        }, {cmd = "reload", desc = "Перезагрузить хелпер"},
+        {cmd = "adesc", desc = "Автоописание персонажа"}
     }
 
     for _, scmd in ipairs(standard) do table.insert(all, scmd) end
@@ -7386,7 +7452,7 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
             MODULE.Members.info.check = false
             if not settings.general.auto_update_members then
                 sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Вы можете включить авто-обновление списка /mb /ph - Функции ' ..
+                                       ' {ffffff}Вы можете включить авто-обновление списка /mb /dh - Функции ' ..
                                        settings.player_info.fraction_tag .. '!',
                                    message_color)
             end
@@ -7468,7 +7534,7 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
             return false
         end
         if MODULE.LeadTools.spawncar and title:find('$') and
-            text:find('Спавн транспорта') then 
+            text:find('Спавн транспорта') then
             local count = 0
             for line in text:gmatch('[^\r\n]+') do
                 if line:find('Спавн транспорта') then
@@ -7631,7 +7697,90 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         end
     end
 
-    if isMode('prison') then
+    if isMode('prison') then end
+
+    -- ========== AutoDesc обработка ==========
+    if autodesc_processing then
+        local cleanText = autodesc_clean_string(text)
+        local cleanTitle = autodesc_clean_string(title)
+        local data = modules.autodesc.data
+
+        if cleanText:find(
+            "Вы создали описание для вашего персонажа") or
+            cleanText:find(
+                "описание для вашего персонажа") then
+            sampSendDialogResponse(dialogid, 1, 0, "")
+            autodesc_processing = false
+            data.lastTime = os.time()
+            data.lastDesc = autodesc_target
+            save_module('autodesc')
+            if data.showMessages then
+                sampAddChatMessage(script_tag ..
+                                       " {ffffff}Описание обновлено.",
+                                   message_color)
+            end
+            return false
+        end
+
+        if cleanText:find("Настройки персонажа") then
+            local idx = autodesc_get_index(text,
+                                           "Настройки персонажа")
+            if idx ~= -1 then
+                sampSendDialogResponse(dialogid, 1, idx, "")
+                return false
+            else
+                autodesc_processing = false
+            end
+        end
+
+        if cleanText:find("Описание персонажа") then
+            if style == 2 or style == 4 or style == 5 then
+                local idx = autodesc_get_index(text,
+                                               "Описание персонажа")
+                if idx ~= -1 then
+                    sampSendDialogResponse(dialogid, 1, idx, "")
+                    return false
+                else
+                    autodesc_processing = false
+                end
+            end
+        end
+
+        if (cleanText:find("Напишите краткое описание") or
+            (cleanTitle:find("Описание персонажа") and style ==
+                1)) then
+            if autodesc_target == "" then
+                sampSendDialogResponse(dialogid, 0, 0, "")
+                autodesc_processing = false
+                data.lastDesc = ""
+                save_module('autodesc')
+            else
+                sampSendDialogResponse(dialogid, 1, 0, autodesc_target)
+            end
+            return false
+        end
+
+        if cleanText:find("Вы хотите его удалить") or
+            cleanText:find(
+                "Сейчас у вас установлено описание") then
+            sampSendDialogResponse(dialogid, 1, 0, "")
+            if autodesc_target == "" then
+                autodesc_processing = false
+                data.lastDesc = ""
+                save_module('autodesc')
+                if data.showMessages then
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Описание удалено.",
+                                       message_color)
+                end
+            else
+                lua_thread.create(function()
+                    wait(500)
+                    sampSendChat("/settings")
+                end)
+            end
+            return false
+        end
     end
 end
 
@@ -7764,8 +7913,7 @@ addEventHandler('onReceivePacket', function(id, bs)
                 end
 
                 if (cmd:find('findGame') and
-                    cmd:find(' документов","Найдите ')) then
-                end
+                    cmd:find(' документов","Найдите ')) then end
 
                 if settings.md.auto_door then
                     if cmd and cmd:find('interactionSidebar') and
@@ -9257,11 +9405,26 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                                     imgui.ImVec2(
                                         591 * settings.general.custom_dpi,
                                         365 * settings.general.custom_dpi), true) then
-                                    local arr =
-                                        (name == 'Leader FastMenu') and
+                                    local arr
+                                    if name == 'Leader FastMenu' then
+                                        arr =
                                             modules.commands.data
-                                                .commands_manage.my or
-                                            modules.commands.data.commands.my
+                                                .commands_manage.my
+                                    elseif name == 'FastMenu' then
+                                        -- объединяем обычные и старшие команды
+                                        arr = {}
+                                        for _, v in ipairs(
+                                                        modules.commands.data
+                                                            .commands.my) do
+                                            table.insert(arr, v)
+                                        end
+                                        for _, v in ipairs(
+                                                        modules.commands.data
+                                                            .commands_senior_staff
+                                                            .my) do
+                                            table.insert(arr, v)
+                                        end
+                                    end
                                     imgui.Columns(3)
                                     imgui.CenterColumnText(
                                         u8 "Нахождение в меню")
@@ -9876,7 +10039,7 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                             if hotkey_no_errors then
                                 imgui.Separator()
                                 imgui.CenterText(
-                                    u8 'Открытие главного меню хелпера (аналог /ph):')
+                                    u8 'Открытие главного меню хелпера (аналог /dh):')
                                 local width = imgui.GetWindowWidth()
                                 local calc =
                                     imgui.CalcTextSize(getNameKeysFrom(
@@ -13782,9 +13945,20 @@ imgui.OnFrame(function() return MODULE.FastMenu.Window[0] end, function(player)
             check = true
         end
     end
+    for _, command in ipairs(modules.commands.data.commands_senior_staff.my) do
+        if command.enable and command.arg == '{arg_id}' and command.in_fastmenu then
+            if imgui.Button(u8(command.description),
+                            imgui.ImVec2(290 * settings.general.custom_dpi,
+                                         30 * settings.general.custom_dpi)) then
+                sampProcessChatInput("/" .. command.cmd .. " " .. player_id)
+                MODULE.FastMenu.Window[0] = false
+            end
+            check = true
+        end
+    end
     if not check then
         sampAddChatMessage(script_tag ..
-                               ' {ffffff}Настройте FastMenu в /ph - Команды и RP отыгровки - FastMenu',
+                               ' {ffffff}Настройте FastMenu в /dh - Команды и RP отыгровки - FastMenu',
                            message_color)
         MODULE.FastMenu.Window[0] = false
     end
@@ -13874,7 +14048,7 @@ imgui.OnFrame(function() return MODULE.LeaderFastMenu.Window[0] end,
     end
     if IS_MOBILE and not check then
         sampAddChatMessage(script_tag ..
-                               ' {ffffff}Настройте Leader FastMenu в /ph - Команды и RP отыгровки - FastMenu',
+                               ' {ffffff}Настройте Leader FastMenu в /dh - Команды и RP отыгровки - FastMenu',
                            message_color)
         MODULE.FastMenu.Window[0] = false
     elseif not IS_MOBILE then
@@ -13938,7 +14112,7 @@ imgui.OnFrame(function() return MODULE.PieMenu.Window[0] end, function(player)
         if not IS_MOBILE then player.HideCursor = false end
         if #modules.piemenu.data.my == 0 then
             sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Настройте или отключите PieMenu в /ph - Команды и RP отыгровки - FastMenu',
+                                   ' {ffffff}Настройте или отключите PieMenu в /dh - Команды и RP отыгровки - FastMenu',
                                message_color)
         end
         for _, item in ipairs(modules.piemenu.data.my) do
@@ -14768,6 +14942,148 @@ imgui.OnFrame(function() return MODULE.Snake.Window[0] end, function(player)
 
     imgui.End()
 end)
+
+imgui.OnFrame(function() return MODULE.AutoDesc.Window[0] end, function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(650 * settings.general.custom_dpi,
+                                         500 * settings.general.custom_dpi),
+                            imgui.Cond.FirstUseEver)
+    imgui.Begin(
+        fa.DESKTOP .. u8(' Автоописание персонажа'),
+        MODULE.AutoDesc.Window,
+        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
+    change_dpi()
+
+    local data = modules.autodesc.data
+    local currentSkin = getCharModel(PLAYER_PED)
+
+    imgui.TextDisabled(u8("Ваш текущий ID скина: ") ..
+                           currentSkin)
+    imgui.SameLine()
+    local timeSinceLast = os.time() - data.lastTime
+    if timeSinceLast < 65 then
+        imgui.TextColored(imgui.ImVec4(1, 0.5, 0, 1), u8(" | КД: ") ..
+                              (65 - timeSinceLast) .. u8(" сек"))
+    else
+        imgui.TextColored(imgui.ImVec4(0, 1, 0, 1),
+                          u8(" | Готов к смене"))
+    end
+
+    imgui.Separator()
+    imgui.Columns(2, "AutoDescCols", true)
+
+    -- Левая панель: список наборов
+    imgui.BeginChild("AutoDescList", imgui.ImVec2(0, -80), true)
+    for i, set in ipairs(data.sets) do
+        local label = u8(set.text)
+        if #label == 0 then label = u8("(Пустое описание)") end
+        if set.deleteAfter then label = label .. u8(" [Auto-Del]") end
+        if imgui.Selectable(label .. "##" .. i,
+                            MODULE.AutoDesc.selectedItem == i) then
+            MODULE.AutoDesc.selectedItem = i
+            imgui.StrCopy(MODULE.AutoDesc.inputDesc, u8(set.text))
+            imgui.StrCopy(MODULE.AutoDesc.inputSkins,
+                          table.concat(set.skins, ", "))
+            MODULE.AutoDesc.inputDeleteAfter[0] = set.deleteAfter or false
+        end
+    end
+    imgui.EndChild()
+
+    if imgui.Button(u8("Удалить выбранное"),
+                    imgui.ImVec2(-1, 25)) then
+        if MODULE.AutoDesc.selectedItem > 0 then
+            table.remove(data.sets, MODULE.AutoDesc.selectedItem)
+            MODULE.AutoDesc.selectedItem = 0
+            save_module('autodesc')
+            imgui.StrCopy(MODULE.AutoDesc.inputDesc, "")
+            imgui.StrCopy(MODULE.AutoDesc.inputSkins, "")
+            MODULE.AutoDesc.inputDeleteAfter[0] = false
+        end
+    end
+
+    imgui.NextColumn()
+
+    -- Правая панель: редактор
+    imgui.Text(u8("Редактор:"))
+    imgui.Text(u8("Текст описания:"))
+    imgui.InputText("##descInput", MODULE.AutoDesc.inputDesc, 256)
+    imgui.Text(u8("ID Скинов (через запятую):"))
+    imgui.InputTextWithHint("##skinsInput", "1050, 1051...",
+                            MODULE.AutoDesc.inputSkins, 256)
+    imgui.Dummy(imgui.ImVec2(0, 5))
+
+    imgui.Checkbox(u8(
+                       "Удалять при смене на другой скин"),
+                   MODULE.AutoDesc.inputDeleteAfter)
+    if imgui.IsItemHovered() then
+        imgui.SetTooltip(u8(
+                             "Если вы смените скин на тот, для которого нет настроек, это описание будет удалено автоматически."))
+    end
+
+    imgui.Dummy(imgui.ImVec2(0, 10))
+
+    if imgui.Button(u8("СОХРАНИТЬ ИЗМЕНЕНИЯ"),
+                    imgui.ImVec2(-1, 30)) then
+        if MODULE.AutoDesc.selectedItem > 0 and
+            data.sets[MODULE.AutoDesc.selectedItem] then
+            local desc = u8:decode(ffi.string(MODULE.AutoDesc.inputDesc))
+            local skinsStr = ffi.string(MODULE.AutoDesc.inputSkins)
+            local skins = {}
+            for num in skinsStr:gmatch("%d+") do
+                table.insert(skins, tonumber(num))
+            end
+            data.sets[MODULE.AutoDesc.selectedItem].text = desc
+            data.sets[MODULE.AutoDesc.selectedItem].skins = skins
+            data.sets[MODULE.AutoDesc.selectedItem].deleteAfter =
+                MODULE.AutoDesc.inputDeleteAfter[0]
+            save_module('autodesc')
+        else
+            sampAddChatMessage(script_tag ..
+                                   " {ffffff}Сначала выберите пункт слева!",
+                               message_color)
+        end
+    end
+
+    imgui.Dummy(imgui.ImVec2(0, 5))
+
+    if imgui.Button(u8("ДОБАВИТЬ НОВОЕ"), imgui.ImVec2(-1, 30)) then
+        local desc = u8:decode(ffi.string(MODULE.AutoDesc.inputDesc))
+        local skinsStr = ffi.string(MODULE.AutoDesc.inputSkins)
+        local skins = {}
+        for num in skinsStr:gmatch("%d+") do
+            table.insert(skins, tonumber(num))
+        end
+        table.insert(data.sets, {
+            text = desc,
+            skins = skins,
+            deleteAfter = MODULE.AutoDesc.inputDeleteAfter[0]
+        })
+        MODULE.AutoDesc.selectedItem = #data.sets
+        save_module('autodesc')
+    end
+
+    imgui.Columns(1)
+
+    imgui.Separator()
+    imgui.TextDisabled(u8("Настройки скрипта:"))
+
+    local active = imgui.new.bool(data.active)
+    if imgui.Checkbox(u8("Скрипт включен"), active) then
+        data.active = active[0]
+        save_module('autodesc')
+    end
+
+    imgui.PushItemWidth(100)
+    local corr = imgui.new.int(data.correctionIndex)
+    if imgui.InputInt(u8("Коррекция меню"), corr) then
+        data.correctionIndex = corr[0]
+        save_module('autodesc')
+    end
+    imgui.PopItemWidth()
+
+    imgui.End()
+end)
 ------------------------------- OTHER FUNCTIONS --------------------------
 -- Функция для проверки, открыто ли хотя бы одно окно хелпера
 function isAnyHelperWindowOpen()
@@ -15032,7 +15348,7 @@ function MODULE.Snake.update_game()
     table.insert(MODULE.Snake.snake, 1, newHead)
 
     if ate then
-        MODULE.Snake.segmentsToGrow = MODULE.Snake.segmentsToGrow + MODULE.Snake.segmentsToGrow
+        MODULE.Snake.segmentsToGrow = MODULE.Snake.segmentsToGrow + 1
         MODULE.Snake.score = MODULE.Snake.score + 1
         MODULE.Snake.generate_food()
         if MODULE.Snake.score % 5 == 0 and MODULE.Snake.updateDelay > 100 then
@@ -15070,6 +15386,24 @@ function MODULE.Snake.draw_cell(x, y, color)
     draw:AddRect(imgui.ImVec2(x0, y0), imgui.ImVec2(x0 + MODULE.Snake.cellSize,
                                                     y0 + MODULE.Snake.cellSize),
                  imgui.GetColorU32Vec4(imgui.ImVec4(0.2, 0.2, 0.2, 1)), 2, 0, 1)
+end
+
+function autodesc_start_change(desc)
+    autodesc_processing = true
+    autodesc_target = desc
+    autodesc_timeout = os.time() + 25
+    sampSendChat("/settings")
+end
+
+function autodesc_clean_string(s) return s:gsub('{[%x%a]+}', '') end
+
+function autodesc_get_index(fullText, target)
+    local clean = autodesc_clean_string(fullText)
+    local s, e = clean:find(target, 1, true)
+    if not s then return -1 end
+    local prefix = clean:sub(1, s - 1)
+    local _, count = prefix:gsub("\n", "")
+    return count + (modules.autodesc.data.correctionIndex or 0)
 end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
