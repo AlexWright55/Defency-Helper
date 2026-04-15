@@ -3,7 +3,7 @@ script_name("Defency Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
-script_version("v1.0.6")
+script_version("v1.1.6")
 ----------------------------------------------- INIT ---------------------------------------------
 local worked_dir = getWorkingDirectory():gsub('\\', '/')
 local IS_MOBILE = MONET_VERSION ~= nil
@@ -106,9 +106,6 @@ local month = {
 math.randomseed(os.time())
 scene_active = false
 local status = false
-local autodesc_processing = false
-local autodesc_target = ""
-local autodesc_timeout = 0
 -------------------------------------------- JSON SETTINGS ---------------------------------------
 local config_dir = worked_dir .. '/Defency Helper'
 local settings = {}
@@ -1223,18 +1220,6 @@ local modules = {
         name = 'Очистка чата',
         path = config_dir .. "/Clear.json",
         data = {}
-    },
-    autodesc = {
-        name = 'Авто-описание',
-        path = config_dir .. "/AutoDesc.json",
-        data = {
-            active = true,
-            correctionIndex = -1,
-            showMessages = true,
-            sets = {},
-            lastDesc = "",
-            lastTime = 0
-        }
     }
 }
 function load_module(key)
@@ -1543,13 +1528,6 @@ local MODULE = {
         updateDelay = 200,
         updateThread = nil,
         segmentsToGrow = 1
-    },
-    AutoDesc = {
-        Window = imgui.new.bool(),
-        inputDesc = imgui.new.char[256](),
-        inputSkins = imgui.new.char[256](),
-        inputDeleteAfter = imgui.new.bool(false),
-        selectedItem = 0
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -3340,10 +3318,6 @@ function main()
     MODULE.Update.news = {}
     load_update_news()
 
-    if autodesc_processing and os.time() > autodesc_timeout then
-        autodesc_processing = false
-    end
-
     while true do
         wait(0)
 
@@ -3360,44 +3334,6 @@ function main()
 
         if MODULE.Post.active then
             MODULE.Post.time = os.difftime(os.time(), MODULE.Post.start_time)
-        end
-
-        -- AutoDesc: проверка смены скина
-        if modules.autodesc and modules.autodesc.data.active then
-            local data = modules.autodesc.data
-            local currentSkin = getCharModel(PLAYER_PED)
-            local neededDesc = nil
-            local foundConfig = false
-
-            for _, set in ipairs(data.sets) do
-                for _, id in ipairs(set.skins) do
-                    if id == currentSkin then
-                        neededDesc = set.text
-                        foundConfig = true
-                        break
-                    end
-                end
-                if foundConfig then break end
-            end
-
-            if not foundConfig then
-                if data.lastDesc and data.lastDesc ~= "" then
-                    for _, set in ipairs(data.sets) do
-                        if set.text == data.lastDesc and set.deleteAfter then
-                            neededDesc = ""
-                            break
-                        end
-                    end
-                end
-            end
-
-            if neededDesc ~= nil and data.lastDesc ~= neededDesc then
-                local timeSince = os.time() - data.lastTime
-                if timeSince > 65 or neededDesc == "" then
-                    -- запускаем смену описания
-                    autodesc_start_change(neededDesc)
-                end
-            end
         end
 
         if (settings.general.rp_guns) and
@@ -3503,7 +3439,6 @@ function load_modules()
     load_module('rpgun')
     load_module('arz_veh')
     load_module('clear')
-    load_module('autodesc')
     cacheVehicleMosels()
     if settings.general.piemenu then
         if pie_no_errors then
@@ -4241,13 +4176,6 @@ function initialize_commands()
                                    " {ffffff}Окно змейки уже открыто.",
                                message_color)
         end
-    end)
-
-    sampRegisterChatCommand("autodesc", function()
-        MODULE.AutoDesc.Window[0] = not MODULE.AutoDesc.Window[0]
-    end)
-    sampRegisterChatCommand("adesc", function()
-        MODULE.AutoDesc.Window[0] = not MODULE.AutoDesc.Window[0]
     end)
 
     if not isMode('none') then
@@ -7223,11 +7151,11 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         title:find('Статистика игрока')) then
         if text:find("Имя") then
             settings.player_info.nick = text:match(
-                                            "{FFFFFF}Имя: {B83434}%[(.-)]") or
+                                            "{FFFFFF}Имя: {......}%[(.-)]") or
                                             text:match(
-                                                "{ffffff}Имя %(en%.%):%s+{BE433D}([^\n\r]+)")
+                                                "{ffffff}Имя %(en%.%):%s+{......}([^\n\r]+)")
             settings.player_info.name_surname = text:match(
-                                                    "{ffffff}Имя %(рус%.%):%s+{BE433D}([^\n\r]+)") or
+                                                    "{ffffff}Имя %(рус%.%):%s+{......}([^\n\r]+)") or
                                                     TranslateNick(
                                                         settings.player_info
                                                             .nick)
@@ -7238,18 +7166,18 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         end
         if text:find("Пол:") then
             settings.player_info.sex = text:match(
-                                           "{FFFFFF}Пол: {B83434}%[(.-)]") or
+                                           "{FFFFFF}Пол: {......}%[(.-)]") or
                                            text:match(
-                                               "{ffffff}Пол:%s+{BE433D}([^\n\r]+)")
+                                               "{ffffff}Пол:%s+{......}([^\n\r]+)")
             sampAddChatMessage(script_tag ..
                                    ' {ffffff}Ваш пол обнаружен: ' ..
                                    settings.player_info.sex, message_color)
         end
         if text:find("Организация:") then
             settings.player_info.fraction = text:match(
-                                                "{FFFFFF}Организация: {B83434}%[(.-)]") or
+                                                "{FFFFFF}Организация: {......}%[(.-)]") or
                                                 text:match(
-                                                    "{ffffff}Организация:%s+{BE433D}([^\n\r]+)")
+                                                    "{ffffff}Организация:%s+{......}([^\n\r]+)")
             local fraction_data = {
                 ['Тюрьма строгого режима LV'] = {
                     'ТСР', 'prison'
@@ -7283,10 +7211,10 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                                    message_color)
                 if text:find("Должность:") then
                     local rank, rank_number = text:match(
-                                                  "{FFFFFF}Должность: {B83434}(.+)%((%d+)%)(.+)Уровень розыска")
+                                                  "{FFFFFF}Должность: {......}(.+)%((%d+)%)(.+)Уровень розыска")
                     if not rank or not rank_number then
                         rank, rank_number = text:match(
-                                                "{ffffff}Должность:%s+{BE433D}([^(]+)%((%d+)%)")
+                                                "{ffffff}Должность:%s+{......}([^(]+)%((%d+)%)")
                     end
                     settings.player_info.fraction_rank = rank
                     settings.player_info.fraction_rank_number = tonumber(
@@ -7698,90 +7626,6 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
     end
 
     if isMode('prison') then end
-
-    -- ========== AutoDesc обработка ==========
-    if autodesc_processing then
-        local cleanText = autodesc_clean_string(text)
-        local cleanTitle = autodesc_clean_string(title)
-        local data = modules.autodesc.data
-
-        if cleanText:find(
-            "Вы создали описание для вашего персонажа") or
-            cleanText:find(
-                "описание для вашего персонажа") then
-            sampSendDialogResponse(dialogid, 1, 0, "")
-            autodesc_processing = false
-            data.lastTime = os.time()
-            data.lastDesc = autodesc_target
-            save_module('autodesc')
-            if data.showMessages then
-                sampAddChatMessage(script_tag ..
-                                       " {ffffff}Описание обновлено.",
-                                   message_color)
-            end
-            return false
-        end
-
-        if cleanText:find("Настройки персонажа") then
-            local idx = autodesc_get_index(text,
-                                           "Настройки персонажа")
-            if idx ~= -1 then
-                sampSendDialogResponse(dialogid, 1, idx, "")
-                return false
-            else
-                autodesc_processing = false
-            end
-        end
-
-        if cleanText:find("Описание персонажа") then
-            if style == 2 or style == 4 or style == 5 then
-                local idx = autodesc_get_index(text,
-                                               "Описание персонажа")
-                if idx ~= -1 then
-                    sampSendDialogResponse(dialogid, 1, idx, "")
-                    return false
-                else
-                    autodesc_processing = false
-                end
-            end
-        end
-
-        if (cleanText:find("Напишите краткое описание") or
-            (cleanTitle:find("Описание персонажа") and style ==
-                1)) then
-            if autodesc_target == "" then
-                sampSendDialogResponse(dialogid, 0, 0, "")
-                autodesc_processing = false
-                data.lastDesc = ""
-                save_module('autodesc')
-            else
-                sampSendDialogResponse(dialogid, 1, 0, autodesc_target)
-            end
-            return false
-        end
-
-        if cleanText:find("Вы хотите его удалить") or
-            cleanText:find(
-                "Сейчас у вас установлено описание") then
-            sampSendDialogResponse(dialogid, 1, 0, "")
-            if autodesc_target == "" then
-                autodesc_processing = false
-                data.lastDesc = ""
-                save_module('autodesc')
-                if data.showMessages then
-                    sampAddChatMessage(script_tag ..
-                                           " {ffffff}Описание удалено.",
-                                       message_color)
-                end
-            else
-                lua_thread.create(function()
-                    wait(500)
-                    sampSendChat("/settings")
-                end)
-            end
-            return false
-        end
-    end
 end
 
 function sampev.onCreate3DText(id, color, position, distance, testLOS,
@@ -8008,6 +7852,14 @@ imgui.OnInitialize(function()
         apply_white_theme()
     elseif settings.general.helper_theme == 3 then
         apply_gamestyle_theme()
+    elseif settings.general.helper_theme == 4 then
+        apply_classic_dark_theme()
+    elseif settings.general.helper_theme == 5 then
+        apply_blue_theme()
+    elseif settings.general.helper_theme == 6 then
+        apply_red_theme()
+    elseif settings.general.helper_theme == 7 then
+        apply_hacker_theme()
     end
 
     imgui.GetIO().ConfigFlags = imgui.ConfigFlags.NoMouseCursorChange
@@ -10492,12 +10344,43 @@ imgui.OnFrame(function() return MODULE.Main.Window[0] end, function(player)
                         imgui.CloseCurrentPopup()
                     end
 
-                    -- === Game Style (доступна всегда) ===
                     if imgui.RadioButtonIntPtr(u8(" Game Style "),
                                                MODULE.Main.theme, 3) then
                         settings.general.helper_theme = 3
                         save_settings()
                         apply_gamestyle_theme()
+                        imgui.CloseCurrentPopup()
+                    end
+
+                    if imgui.RadioButtonIntPtr(u8(" Classic Dark "),
+                                               MODULE.Main.theme, 4) then
+                        settings.general.helper_theme = 4
+                        save_settings()
+                        apply_classic_dark_theme()
+                        imgui.CloseCurrentPopup()
+                    end
+
+                    if imgui.RadioButtonIntPtr(u8(" Blue Theme "),
+                                               MODULE.Main.theme, 5) then
+                        settings.general.helper_theme = 5
+                        save_settings()
+                        apply_blue_theme()
+                        imgui.CloseCurrentPopup()
+                    end
+
+                    if imgui.RadioButtonIntPtr(u8(" Red Theme "),
+                                               MODULE.Main.theme, 6) then
+                        settings.general.helper_theme = 6
+                        save_settings()
+                        apply_red_theme()
+                        imgui.CloseCurrentPopup()
+                    end
+
+                    if imgui.RadioButtonIntPtr(u8(" Hacker Theme"),
+                                               MODULE.Main.theme, 7) then
+                        settings.general.helper_theme = 7
+                        save_settings()
+                        apply_hacker_theme()
                         imgui.CloseCurrentPopup()
                     end
 
@@ -14942,148 +14825,6 @@ imgui.OnFrame(function() return MODULE.Snake.Window[0] end, function(player)
 
     imgui.End()
 end)
-
-imgui.OnFrame(function() return MODULE.AutoDesc.Window[0] end, function(player)
-    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
-                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(650 * settings.general.custom_dpi,
-                                         500 * settings.general.custom_dpi),
-                            imgui.Cond.FirstUseEver)
-    imgui.Begin(
-        fa.DESKTOP .. u8(' Автоописание персонажа'),
-        MODULE.AutoDesc.Window,
-        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
-    change_dpi()
-
-    local data = modules.autodesc.data
-    local currentSkin = getCharModel(PLAYER_PED)
-
-    imgui.TextDisabled(u8("Ваш текущий ID скина: ") ..
-                           currentSkin)
-    imgui.SameLine()
-    local timeSinceLast = os.time() - data.lastTime
-    if timeSinceLast < 65 then
-        imgui.TextColored(imgui.ImVec4(1, 0.5, 0, 1), u8(" | КД: ") ..
-                              (65 - timeSinceLast) .. u8(" сек"))
-    else
-        imgui.TextColored(imgui.ImVec4(0, 1, 0, 1),
-                          u8(" | Готов к смене"))
-    end
-
-    imgui.Separator()
-    imgui.Columns(2, "AutoDescCols", true)
-
-    -- Левая панель: список наборов
-    imgui.BeginChild("AutoDescList", imgui.ImVec2(0, -80), true)
-    for i, set in ipairs(data.sets) do
-        local label = u8(set.text)
-        if #label == 0 then label = u8("(Пустое описание)") end
-        if set.deleteAfter then label = label .. u8(" [Auto-Del]") end
-        if imgui.Selectable(label .. "##" .. i,
-                            MODULE.AutoDesc.selectedItem == i) then
-            MODULE.AutoDesc.selectedItem = i
-            imgui.StrCopy(MODULE.AutoDesc.inputDesc, u8(set.text))
-            imgui.StrCopy(MODULE.AutoDesc.inputSkins,
-                          table.concat(set.skins, ", "))
-            MODULE.AutoDesc.inputDeleteAfter[0] = set.deleteAfter or false
-        end
-    end
-    imgui.EndChild()
-
-    if imgui.Button(u8("Удалить выбранное"),
-                    imgui.ImVec2(-1, 25)) then
-        if MODULE.AutoDesc.selectedItem > 0 then
-            table.remove(data.sets, MODULE.AutoDesc.selectedItem)
-            MODULE.AutoDesc.selectedItem = 0
-            save_module('autodesc')
-            imgui.StrCopy(MODULE.AutoDesc.inputDesc, "")
-            imgui.StrCopy(MODULE.AutoDesc.inputSkins, "")
-            MODULE.AutoDesc.inputDeleteAfter[0] = false
-        end
-    end
-
-    imgui.NextColumn()
-
-    -- Правая панель: редактор
-    imgui.Text(u8("Редактор:"))
-    imgui.Text(u8("Текст описания:"))
-    imgui.InputText("##descInput", MODULE.AutoDesc.inputDesc, 256)
-    imgui.Text(u8("ID Скинов (через запятую):"))
-    imgui.InputTextWithHint("##skinsInput", "1050, 1051...",
-                            MODULE.AutoDesc.inputSkins, 256)
-    imgui.Dummy(imgui.ImVec2(0, 5))
-
-    imgui.Checkbox(u8(
-                       "Удалять при смене на другой скин"),
-                   MODULE.AutoDesc.inputDeleteAfter)
-    if imgui.IsItemHovered() then
-        imgui.SetTooltip(u8(
-                             "Если вы смените скин на тот, для которого нет настроек, это описание будет удалено автоматически."))
-    end
-
-    imgui.Dummy(imgui.ImVec2(0, 10))
-
-    if imgui.Button(u8("СОХРАНИТЬ ИЗМЕНЕНИЯ"),
-                    imgui.ImVec2(-1, 30)) then
-        if MODULE.AutoDesc.selectedItem > 0 and
-            data.sets[MODULE.AutoDesc.selectedItem] then
-            local desc = u8:decode(ffi.string(MODULE.AutoDesc.inputDesc))
-            local skinsStr = ffi.string(MODULE.AutoDesc.inputSkins)
-            local skins = {}
-            for num in skinsStr:gmatch("%d+") do
-                table.insert(skins, tonumber(num))
-            end
-            data.sets[MODULE.AutoDesc.selectedItem].text = desc
-            data.sets[MODULE.AutoDesc.selectedItem].skins = skins
-            data.sets[MODULE.AutoDesc.selectedItem].deleteAfter =
-                MODULE.AutoDesc.inputDeleteAfter[0]
-            save_module('autodesc')
-        else
-            sampAddChatMessage(script_tag ..
-                                   " {ffffff}Сначала выберите пункт слева!",
-                               message_color)
-        end
-    end
-
-    imgui.Dummy(imgui.ImVec2(0, 5))
-
-    if imgui.Button(u8("ДОБАВИТЬ НОВОЕ"), imgui.ImVec2(-1, 30)) then
-        local desc = u8:decode(ffi.string(MODULE.AutoDesc.inputDesc))
-        local skinsStr = ffi.string(MODULE.AutoDesc.inputSkins)
-        local skins = {}
-        for num in skinsStr:gmatch("%d+") do
-            table.insert(skins, tonumber(num))
-        end
-        table.insert(data.sets, {
-            text = desc,
-            skins = skins,
-            deleteAfter = MODULE.AutoDesc.inputDeleteAfter[0]
-        })
-        MODULE.AutoDesc.selectedItem = #data.sets
-        save_module('autodesc')
-    end
-
-    imgui.Columns(1)
-
-    imgui.Separator()
-    imgui.TextDisabled(u8("Настройки скрипта:"))
-
-    local active = imgui.new.bool(data.active)
-    if imgui.Checkbox(u8("Скрипт включен"), active) then
-        data.active = active[0]
-        save_module('autodesc')
-    end
-
-    imgui.PushItemWidth(100)
-    local corr = imgui.new.int(data.correctionIndex)
-    if imgui.InputInt(u8("Коррекция меню"), corr) then
-        data.correctionIndex = corr[0]
-        save_module('autodesc')
-    end
-    imgui.PopItemWidth()
-
-    imgui.End()
-end)
 ------------------------------- OTHER FUNCTIONS --------------------------
 -- Функция для проверки, открыто ли хотя бы одно окно хелпера
 function isAnyHelperWindowOpen()
@@ -15387,24 +15128,6 @@ function MODULE.Snake.draw_cell(x, y, color)
                                                     y0 + MODULE.Snake.cellSize),
                  imgui.GetColorU32Vec4(imgui.ImVec4(0.2, 0.2, 0.2, 1)), 2, 0, 1)
 end
-
-function autodesc_start_change(desc)
-    autodesc_processing = true
-    autodesc_target = desc
-    autodesc_timeout = os.time() + 25
-    sampSendChat("/settings")
-end
-
-function autodesc_clean_string(s) return s:gsub('{[%x%a]+}', '') end
-
-function autodesc_get_index(fullText, target)
-    local clean = autodesc_clean_string(fullText)
-    local s, e = clean:find(target, 1, true)
-    if not s then return -1 end
-    local prefix = clean:sub(1, s - 1)
-    local _, count = prefix:gsub("\n", "")
-    return count + (modules.autodesc.data.correctionIndex or 0)
-end
 ---------------------------------- GUI ITEMS -----------------------------
 function imgui.ToggleButton(str_id, bool)
     local rBool = false
@@ -15656,6 +15379,7 @@ function safery_disable_cursor(gui)
         gui.HideCursor = false
     end
 end
+
 function apply_dark_theme()
     imgui.SwitchContext()
     imgui.GetStyle().WindowPadding = imgui.ImVec2(5 *
@@ -15816,6 +15540,7 @@ function apply_dark_theme()
                                                                        0.12,
                                                                        0.95)
 end
+
 function apply_white_theme()
     imgui.SwitchContext()
     imgui.GetStyle().WindowPadding = imgui.ImVec2(5 *
@@ -16076,6 +15801,342 @@ function apply_gamestyle_theme()
         imgui.ImVec4(0, 0, 0, 0.5)
     imgui.GetStyle().Colors[imgui.Col.ModalWindowDimBg] =
         imgui.ImVec4(0, 0, 0, 0.7)
+end
+
+function apply_classic_dark_theme()
+    imgui.SwitchContext()
+    local style = imgui.GetStyle()
+    local dpi = settings.general.custom_dpi
+    style.WindowPadding = imgui.ImVec2(5 * dpi, 5 * dpi) -- как в Dark
+    style.FramePadding = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemSpacing = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemInnerSpacing = imgui.ImVec2(2 * dpi, 2 * dpi)
+    style.IndentSpacing = 0
+    style.ScrollbarSize = (IS_MOBILE and 15 or 10) * dpi
+    style.GrabMinSize = 10 * dpi
+    style.WindowBorderSize = 1 * dpi
+    style.ChildBorderSize = 1 * dpi
+    style.PopupBorderSize = 1 * dpi
+    style.FrameBorderSize = 1 * dpi
+    style.TabBorderSize = 1 * dpi
+    style.WindowRounding = 8 * dpi -- можно оставить 8 как в Dark
+    style.ChildRounding = 8 * dpi
+    style.FrameRounding = 8 * dpi
+    style.PopupRounding = 8 * dpi
+    style.ScrollbarRounding = 8 * dpi
+    style.GrabRounding = 8 * dpi
+    style.TabRounding = 8 * dpi
+    style.WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
+    style.ButtonTextAlign = imgui.ImVec2(0.5, 0.5)
+    style.SelectableTextAlign = imgui.ImVec2(0.5, 0.5)
+
+    local colors = style.Colors
+    colors[imgui.Col.Text] = imgui.ImVec4(0.90, 0.90, 0.90, 1.00)
+    colors[imgui.Col.TextDisabled] = imgui.ImVec4(0.50, 0.50, 0.50, 1.00)
+    colors[imgui.Col.WindowBg] = imgui.ImVec4(0.10, 0.10, 0.10, 0.94)
+    colors[imgui.Col.ChildBg] = imgui.ImVec4(0.10, 0.10, 0.10, 1.00)
+    colors[imgui.Col.PopupBg] = imgui.ImVec4(0.08, 0.08, 0.08, 0.94)
+    colors[imgui.Col.Border] = imgui.ImVec4(0.43, 0.43, 0.50, 0.50)
+    colors[imgui.Col.BorderShadow] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+    colors[imgui.Col.FrameBg] = imgui.ImVec4(0.20, 0.21, 0.22, 1.00)
+    colors[imgui.Col.FrameBgHovered] = imgui.ImVec4(0.37, 0.37, 0.39, 1.00)
+    colors[imgui.Col.FrameBgActive] = imgui.ImVec4(0.28, 0.28, 0.30, 1.00)
+    colors[imgui.Col.TitleBg] = imgui.ImVec4(0.20, 0.21, 0.22, 1.00)
+    colors[imgui.Col.TitleBgActive] = imgui.ImVec4(0.30, 0.31, 0.32, 1.00)
+    colors[imgui.Col.TitleBgCollapsed] = imgui.ImVec4(0.00, 0.00, 0.00, 0.51)
+    colors[imgui.Col.MenuBarBg] = imgui.ImVec4(0.15, 0.15, 0.15, 1.00)
+    colors[imgui.Col.ScrollbarBg] = imgui.ImVec4(0.02, 0.02, 0.02, 0.53)
+    colors[imgui.Col.ScrollbarGrab] = imgui.ImVec4(0.31, 0.31, 0.31, 1.00)
+    colors[imgui.Col.ScrollbarGrabHovered] =
+        imgui.ImVec4(0.41, 0.41, 0.41, 1.00)
+    colors[imgui.Col.ScrollbarGrabActive] = imgui.ImVec4(0.51, 0.51, 0.51, 1.00)
+    colors[imgui.Col.CheckMark] = imgui.ImVec4(0.26, 0.59, 0.98, 1.00)
+    colors[imgui.Col.SliderGrab] = imgui.ImVec4(0.26, 0.59, 0.98, 1.00)
+    colors[imgui.Col.SliderGrabActive] = imgui.ImVec4(0.46, 0.69, 1.00, 1.00)
+    colors[imgui.Col.Button] = imgui.ImVec4(0.20, 0.21, 0.22, 1.00)
+    colors[imgui.Col.ButtonHovered] = imgui.ImVec4(0.37, 0.37, 0.39, 1.00)
+    colors[imgui.Col.ButtonActive] = imgui.ImVec4(0.28, 0.28, 0.30, 1.00)
+    colors[imgui.Col.Header] = imgui.ImVec4(0.26, 0.59, 0.98, 0.31)
+    colors[imgui.Col.HeaderHovered] = imgui.ImVec4(0.26, 0.59, 0.98, 0.80)
+    colors[imgui.Col.HeaderActive] = imgui.ImVec4(0.26, 0.59, 0.98, 1.00)
+    colors[imgui.Col.Separator] = imgui.ImVec4(0.43, 0.43, 0.50, 0.50)
+    colors[imgui.Col.SeparatorHovered] = imgui.ImVec4(0.10, 0.40, 0.75, 0.78)
+    colors[imgui.Col.SeparatorActive] = imgui.ImVec4(0.10, 0.40, 0.75, 1.00)
+    colors[imgui.Col.ResizeGrip] = imgui.ImVec4(0.26, 0.59, 0.98, 0.25)
+    colors[imgui.Col.ResizeGripHovered] = imgui.ImVec4(0.26, 0.59, 0.98, 0.67)
+    colors[imgui.Col.ResizeGripActive] = imgui.ImVec4(0.26, 0.59, 0.98, 0.95)
+    colors[imgui.Col.Tab] = imgui.ImVec4(0.20, 0.21, 0.22, 1.00)
+    colors[imgui.Col.TabHovered] = imgui.ImVec4(0.37, 0.37, 0.39, 1.00)
+    colors[imgui.Col.TabActive] = imgui.ImVec4(0.28, 0.28, 0.30, 1.00)
+    colors[imgui.Col.TabUnfocused] = imgui.ImVec4(0.15, 0.15, 0.15, 0.97)
+    colors[imgui.Col.TabUnfocusedActive] = imgui.ImVec4(0.26, 0.59, 0.98, 1.00)
+    colors[imgui.Col.PlotLines] = imgui.ImVec4(0.61, 0.61, 0.61, 1.00)
+    colors[imgui.Col.PlotLinesHovered] = imgui.ImVec4(1.00, 0.43, 0.35, 1.00)
+    colors[imgui.Col.PlotHistogram] = imgui.ImVec4(0.90, 0.70, 0.00, 1.00)
+    colors[imgui.Col.PlotHistogramHovered] =
+        imgui.ImVec4(1.00, 0.60, 0.00, 1.00)
+    colors[imgui.Col.TextSelectedBg] = imgui.ImVec4(0.26, 0.59, 0.98, 0.35)
+    colors[imgui.Col.DragDropTarget] = imgui.ImVec4(1.00, 1.00, 0.00, 0.90)
+    colors[imgui.Col.NavHighlight] = imgui.ImVec4(0.26, 0.59, 0.98, 1.00)
+    colors[imgui.Col.NavWindowingHighlight] =
+        imgui.ImVec4(1.00, 1.00, 1.00, 0.70)
+    colors[imgui.Col.NavWindowingDimBg] = imgui.ImVec4(0.80, 0.80, 0.80, 0.20)
+    colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.12, 0.12, 0.12, 0.95)
+end
+
+function apply_blue_theme()
+    imgui.SwitchContext()
+    local style = imgui.GetStyle()
+    local dpi = settings.general.custom_dpi
+    style.WindowPadding = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.FramePadding = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemSpacing = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemInnerSpacing = imgui.ImVec2(2 * dpi, 2 * dpi)
+    style.IndentSpacing = 0
+    style.ScrollbarSize = (IS_MOBILE and 15 or 10) * dpi
+    style.GrabMinSize = 10 * dpi
+    style.WindowBorderSize = 1 * dpi
+    style.ChildBorderSize = 1 * dpi
+    style.PopupBorderSize = 1 * dpi
+    style.FrameBorderSize = 1 * dpi
+    style.TabBorderSize = 1 * dpi
+    style.WindowRounding = 8 * dpi
+    style.ChildRounding = 8 * dpi
+    style.FrameRounding = 8 * dpi
+    style.PopupRounding = 8 * dpi
+    style.ScrollbarRounding = 8 * dpi
+    style.GrabRounding = 8 * dpi
+    style.TabRounding = 8 * dpi
+    style.WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
+    style.ButtonTextAlign = imgui.ImVec2(0.5, 0.5)
+    style.SelectableTextAlign = imgui.ImVec2(0.5, 0.5)
+
+    local colors = style.Colors
+    colors[imgui.Col.Text] = imgui.ImVec4(0.95, 0.96, 0.98, 1.00)
+    colors[imgui.Col.TextDisabled] = imgui.ImVec4(0.40, 0.50, 0.60, 1.00)
+    colors[imgui.Col.WindowBg] = imgui.ImVec4(0.05, 0.07, 0.12, 0.95)
+    colors[imgui.Col.ChildBg] = imgui.ImVec4(0.05, 0.07, 0.12, 1.00)
+    colors[imgui.Col.PopupBg] = imgui.ImVec4(0.05, 0.07, 0.12, 0.95)
+    colors[imgui.Col.Border] = imgui.ImVec4(0.20, 0.35, 0.55, 0.50)
+    colors[imgui.Col.BorderShadow] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+    colors[imgui.Col.FrameBg] = imgui.ImVec4(0.15, 0.22, 0.35, 1.00)
+    colors[imgui.Col.FrameBgHovered] = imgui.ImVec4(0.25, 0.35, 0.55, 1.00)
+    colors[imgui.Col.FrameBgActive] = imgui.ImVec4(0.20, 0.30, 0.45, 1.00)
+    colors[imgui.Col.TitleBg] = imgui.ImVec4(0.15, 0.22, 0.35, 1.00)
+    colors[imgui.Col.TitleBgActive] = imgui.ImVec4(0.25, 0.35, 0.55, 1.00)
+    colors[imgui.Col.TitleBgCollapsed] = imgui.ImVec4(0.00, 0.00, 0.00, 0.51)
+    colors[imgui.Col.MenuBarBg] = imgui.ImVec4(0.10, 0.15, 0.25, 1.00)
+    colors[imgui.Col.ScrollbarBg] = imgui.ImVec4(0.02, 0.02, 0.02, 0.53)
+    colors[imgui.Col.ScrollbarGrab] = imgui.ImVec4(0.25, 0.45, 0.75, 1.00)
+    colors[imgui.Col.ScrollbarGrabHovered] =
+        imgui.ImVec4(0.35, 0.55, 0.85, 1.00)
+    colors[imgui.Col.ScrollbarGrabActive] = imgui.ImVec4(0.45, 0.65, 0.95, 1.00)
+    colors[imgui.Col.CheckMark] = imgui.ImVec4(0.25, 0.65, 0.95, 1.00)
+    colors[imgui.Col.SliderGrab] = imgui.ImVec4(0.25, 0.65, 0.95, 1.00)
+    colors[imgui.Col.SliderGrabActive] = imgui.ImVec4(0.45, 0.75, 1.00, 1.00)
+    colors[imgui.Col.Button] = imgui.ImVec4(0.15, 0.25, 0.45, 1.00)
+    colors[imgui.Col.ButtonHovered] = imgui.ImVec4(0.25, 0.40, 0.65, 1.00)
+    colors[imgui.Col.ButtonActive] = imgui.ImVec4(0.20, 0.35, 0.55, 1.00)
+    colors[imgui.Col.Header] = imgui.ImVec4(0.20, 0.45, 0.85, 0.31)
+    colors[imgui.Col.HeaderHovered] = imgui.ImVec4(0.20, 0.45, 0.85, 0.80)
+    colors[imgui.Col.HeaderActive] = imgui.ImVec4(0.20, 0.45, 0.85, 1.00)
+    colors[imgui.Col.Separator] = imgui.ImVec4(0.20, 0.35, 0.55, 0.50)
+    colors[imgui.Col.SeparatorHovered] = imgui.ImVec4(0.10, 0.40, 0.75, 0.78)
+    colors[imgui.Col.SeparatorActive] = imgui.ImVec4(0.10, 0.40, 0.75, 1.00)
+    colors[imgui.Col.ResizeGrip] = imgui.ImVec4(0.25, 0.65, 0.95, 0.25)
+    colors[imgui.Col.ResizeGripHovered] = imgui.ImVec4(0.25, 0.65, 0.95, 0.67)
+    colors[imgui.Col.ResizeGripActive] = imgui.ImVec4(0.25, 0.65, 0.95, 0.95)
+    colors[imgui.Col.Tab] = imgui.ImVec4(0.15, 0.25, 0.45, 1.00)
+    colors[imgui.Col.TabHovered] = imgui.ImVec4(0.25, 0.40, 0.65, 1.00)
+    colors[imgui.Col.TabActive] = imgui.ImVec4(0.20, 0.35, 0.55, 1.00)
+    colors[imgui.Col.TabUnfocused] = imgui.ImVec4(0.10, 0.15, 0.25, 0.97)
+    colors[imgui.Col.TabUnfocusedActive] = imgui.ImVec4(0.20, 0.45, 0.85, 1.00)
+    colors[imgui.Col.PlotLines] = imgui.ImVec4(0.25, 0.65, 0.95, 1.00)
+    colors[imgui.Col.PlotLinesHovered] = imgui.ImVec4(1.00, 0.43, 0.35, 1.00)
+    colors[imgui.Col.PlotHistogram] = imgui.ImVec4(0.25, 0.65, 0.95, 1.00)
+    colors[imgui.Col.PlotHistogramHovered] =
+        imgui.ImVec4(1.00, 0.60, 0.00, 1.00)
+    colors[imgui.Col.TextSelectedBg] = imgui.ImVec4(0.25, 0.65, 0.95, 0.35)
+    colors[imgui.Col.DragDropTarget] = imgui.ImVec4(1.00, 1.00, 0.00, 0.90)
+    colors[imgui.Col.NavHighlight] = imgui.ImVec4(0.25, 0.65, 0.95, 1.00)
+    colors[imgui.Col.NavWindowingHighlight] =
+        imgui.ImVec4(1.00, 1.00, 1.00, 0.70)
+    colors[imgui.Col.NavWindowingDimBg] = imgui.ImVec4(0.80, 0.80, 0.80, 0.20)
+    colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.05, 0.07, 0.12, 0.95)
+end
+
+function apply_red_theme()
+    imgui.SwitchContext()
+    local style = imgui.GetStyle()
+    local dpi = settings.general.custom_dpi
+    style.WindowPadding = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.FramePadding = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemSpacing = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemInnerSpacing = imgui.ImVec2(2 * dpi, 2 * dpi)
+    style.IndentSpacing = 0
+    style.ScrollbarSize = (IS_MOBILE and 15 or 10) * dpi
+    style.GrabMinSize = 10 * dpi
+    style.WindowBorderSize = 1 * dpi
+    style.ChildBorderSize = 1 * dpi
+    style.PopupBorderSize = 1 * dpi
+    style.FrameBorderSize = 1 * dpi
+    style.TabBorderSize = 1 * dpi
+    style.WindowRounding = 8 * dpi
+    style.ChildRounding = 8 * dpi
+    style.FrameRounding = 8 * dpi
+    style.PopupRounding = 8 * dpi
+    style.ScrollbarRounding = 8 * dpi
+    style.GrabRounding = 8 * dpi
+    style.TabRounding = 8 * dpi
+    style.WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
+    style.ButtonTextAlign = imgui.ImVec2(0.5, 0.5)
+    style.SelectableTextAlign = imgui.ImVec2(0.5, 0.5)
+
+    local colors = style.Colors
+    colors[imgui.Col.Text] = imgui.ImVec4(0.95, 0.90, 0.90, 1.00)
+    colors[imgui.Col.TextDisabled] = imgui.ImVec4(0.60, 0.40, 0.40, 1.00)
+    colors[imgui.Col.WindowBg] = imgui.ImVec4(0.12, 0.05, 0.05, 0.95)
+    colors[imgui.Col.ChildBg] = imgui.ImVec4(0.12, 0.05, 0.05, 1.00)
+    colors[imgui.Col.PopupBg] = imgui.ImVec4(0.12, 0.05, 0.05, 0.95)
+    colors[imgui.Col.Border] = imgui.ImVec4(0.55, 0.20, 0.20, 0.50)
+    colors[imgui.Col.BorderShadow] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+    colors[imgui.Col.FrameBg] = imgui.ImVec4(0.35, 0.15, 0.15, 1.00)
+    colors[imgui.Col.FrameBgHovered] = imgui.ImVec4(0.55, 0.25, 0.25, 1.00)
+    colors[imgui.Col.FrameBgActive] = imgui.ImVec4(0.45, 0.20, 0.20, 1.00)
+    colors[imgui.Col.TitleBg] = imgui.ImVec4(0.35, 0.15, 0.15, 1.00)
+    colors[imgui.Col.TitleBgActive] = imgui.ImVec4(0.55, 0.25, 0.25, 1.00)
+    colors[imgui.Col.TitleBgCollapsed] = imgui.ImVec4(0.00, 0.00, 0.00, 0.51)
+    colors[imgui.Col.MenuBarBg] = imgui.ImVec4(0.25, 0.10, 0.10, 1.00)
+    colors[imgui.Col.ScrollbarBg] = imgui.ImVec4(0.02, 0.02, 0.02, 0.53)
+    colors[imgui.Col.ScrollbarGrab] = imgui.ImVec4(0.75, 0.25, 0.25, 1.00)
+    colors[imgui.Col.ScrollbarGrabHovered] =
+        imgui.ImVec4(0.85, 0.35, 0.35, 1.00)
+    colors[imgui.Col.ScrollbarGrabActive] = imgui.ImVec4(0.95, 0.45, 0.45, 1.00)
+    colors[imgui.Col.CheckMark] = imgui.ImVec4(0.95, 0.25, 0.25, 1.00)
+    colors[imgui.Col.SliderGrab] = imgui.ImVec4(0.95, 0.25, 0.25, 1.00)
+    colors[imgui.Col.SliderGrabActive] = imgui.ImVec4(1.00, 0.45, 0.45, 1.00)
+    colors[imgui.Col.Button] = imgui.ImVec4(0.45, 0.15, 0.15, 1.00)
+    colors[imgui.Col.ButtonHovered] = imgui.ImVec4(0.65, 0.25, 0.25, 1.00)
+    colors[imgui.Col.ButtonActive] = imgui.ImVec4(0.55, 0.20, 0.20, 1.00)
+    colors[imgui.Col.Header] = imgui.ImVec4(0.85, 0.20, 0.20, 0.31)
+    colors[imgui.Col.HeaderHovered] = imgui.ImVec4(0.85, 0.20, 0.20, 0.80)
+    colors[imgui.Col.HeaderActive] = imgui.ImVec4(0.85, 0.20, 0.20, 1.00)
+    colors[imgui.Col.Separator] = imgui.ImVec4(0.55, 0.20, 0.20, 0.50)
+    colors[imgui.Col.SeparatorHovered] = imgui.ImVec4(0.75, 0.10, 0.10, 0.78)
+    colors[imgui.Col.SeparatorActive] = imgui.ImVec4(0.75, 0.10, 0.10, 1.00)
+    colors[imgui.Col.ResizeGrip] = imgui.ImVec4(0.95, 0.25, 0.25, 0.25)
+    colors[imgui.Col.ResizeGripHovered] = imgui.ImVec4(0.95, 0.25, 0.25, 0.67)
+    colors[imgui.Col.ResizeGripActive] = imgui.ImVec4(0.95, 0.25, 0.25, 0.95)
+    colors[imgui.Col.Tab] = imgui.ImVec4(0.45, 0.15, 0.15, 1.00)
+    colors[imgui.Col.TabHovered] = imgui.ImVec4(0.65, 0.25, 0.25, 1.00)
+    colors[imgui.Col.TabActive] = imgui.ImVec4(0.55, 0.20, 0.20, 1.00)
+    colors[imgui.Col.TabUnfocused] = imgui.ImVec4(0.25, 0.10, 0.10, 0.97)
+    colors[imgui.Col.TabUnfocusedActive] = imgui.ImVec4(0.85, 0.20, 0.20, 1.00)
+    colors[imgui.Col.PlotLines] = imgui.ImVec4(0.95, 0.25, 0.25, 1.00)
+    colors[imgui.Col.PlotLinesHovered] = imgui.ImVec4(1.00, 0.43, 0.35, 1.00)
+    colors[imgui.Col.PlotHistogram] = imgui.ImVec4(0.95, 0.25, 0.25, 1.00)
+    colors[imgui.Col.PlotHistogramHovered] =
+        imgui.ImVec4(1.00, 0.60, 0.00, 1.00)
+    colors[imgui.Col.TextSelectedBg] = imgui.ImVec4(0.95, 0.25, 0.25, 0.35)
+    colors[imgui.Col.DragDropTarget] = imgui.ImVec4(1.00, 1.00, 0.00, 0.90)
+    colors[imgui.Col.NavHighlight] = imgui.ImVec4(0.95, 0.25, 0.25, 1.00)
+    colors[imgui.Col.NavWindowingHighlight] =
+        imgui.ImVec4(1.00, 1.00, 1.00, 0.70)
+    colors[imgui.Col.NavWindowingDimBg] = imgui.ImVec4(0.80, 0.80, 0.80, 0.20)
+    colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.12, 0.05, 0.05, 0.95)
+end
+
+function apply_hacker_theme()
+    imgui.SwitchContext()
+    local style = imgui.GetStyle()
+    local dpi = settings.general.custom_dpi
+
+    style.WindowPadding = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.FramePadding = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemSpacing = imgui.ImVec2(5 * dpi, 5 * dpi)
+    style.ItemInnerSpacing = imgui.ImVec2(2 * dpi, 2 * dpi)
+    style.IndentSpacing = 0
+    style.ScrollbarSize = (IS_MOBILE and 15 or 10) * dpi
+    style.GrabMinSize = 10 * dpi
+    style.WindowBorderSize = 1 * dpi
+    style.ChildBorderSize = 1 * dpi
+    style.PopupBorderSize = 1 * dpi
+    style.FrameBorderSize = 1 * dpi
+    style.TabBorderSize = 1 * dpi
+    style.WindowRounding = 0
+    style.ChildRounding = 0
+    style.FrameRounding = 0
+    style.PopupRounding = 0
+    style.ScrollbarRounding = 0
+    style.GrabRounding = 0
+    style.TabRounding = 0
+    style.WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
+    style.ButtonTextAlign = imgui.ImVec2(0.5, 0.5)
+    style.SelectableTextAlign = imgui.ImVec2(0.5, 0.5)
+
+    local colors = style.Colors
+
+    colors[imgui.Col.WindowBg] = imgui.ImVec4(0.05, 0.05, 0.05, 0.95)
+    colors[imgui.Col.ChildBg] = imgui.ImVec4(0.05, 0.05, 0.05, 1.00)
+    colors[imgui.Col.PopupBg] = imgui.ImVec4(0.05, 0.05, 0.05, 0.95)
+    colors[imgui.Col.Border] = imgui.ImVec4(0.741, 0.741, 0.741, 0.50)
+    colors[imgui.Col.BorderShadow] = imgui.ImVec4(0.00, 0.00, 0.00, 0.00)
+
+    colors[imgui.Col.Text] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.TextDisabled] = imgui.ImVec4(0.45, 0.45, 0.45, 1.00)
+
+    colors[imgui.Col.FrameBg] = imgui.ImVec4(0.10, 0.10, 0.10, 1.00)
+    colors[imgui.Col.FrameBgHovered] = imgui.ImVec4(0.20, 0.20, 0.20, 1.00)
+    colors[imgui.Col.FrameBgActive] = imgui.ImVec4(0.25, 0.25, 0.25, 1.00)
+
+    colors[imgui.Col.TitleBg] = imgui.ImVec4(0.08, 0.08, 0.08, 1.00)
+    colors[imgui.Col.TitleBgActive] = imgui.ImVec4(0.30, 0.30, 0.30, 1.00)
+    colors[imgui.Col.TitleBgCollapsed] = imgui.ImVec4(0.00, 0.00, 0.00, 0.51)
+
+    colors[imgui.Col.MenuBarBg] = imgui.ImVec4(0.08, 0.08, 0.08, 1.00)
+
+    colors[imgui.Col.ScrollbarBg] = imgui.ImVec4(0.02, 0.02, 0.02, 0.53)
+    colors[imgui.Col.ScrollbarGrab] = imgui.ImVec4(0.55, 0.55, 0.55, 1.00)
+    colors[imgui.Col.ScrollbarGrabHovered] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.ScrollbarGrabActive] = imgui.ImVec4(0.45, 0.45, 0.45, 1.00)
+
+    colors[imgui.Col.CheckMark] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.SliderGrab] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.SliderGrabActive] = imgui.ImVec4(0.50, 0.50, 0.50, 1.00)
+
+    colors[imgui.Col.Button] = imgui.ImVec4(0.10, 0.10, 0.10, 1.00)
+    colors[imgui.Col.ButtonHovered] = imgui.ImVec4(0.40, 0.40, 0.40, 1.00)
+    colors[imgui.Col.ButtonActive] = imgui.ImVec4(0.60, 0.60, 0.60, 1.00)
+
+    colors[imgui.Col.Header] = imgui.ImVec4(0.30, 0.30, 0.30, 0.31)
+    colors[imgui.Col.HeaderHovered] = imgui.ImVec4(0.40, 0.40, 0.40, 0.80)
+    colors[imgui.Col.HeaderActive] = imgui.ImVec4(0.50, 0.50, 0.50, 1.00)
+
+    colors[imgui.Col.Separator] = imgui.ImVec4(0.40, 0.40, 0.40, 0.50)
+    colors[imgui.Col.SeparatorHovered] = imgui.ImVec4(0.50, 0.50, 0.50, 0.78)
+    colors[imgui.Col.SeparatorActive] = imgui.ImVec4(0.60, 0.60, 0.60, 1.00)
+
+    colors[imgui.Col.ResizeGrip] = imgui.ImVec4(0.741, 0.741, 0.741, 0.25)
+    colors[imgui.Col.ResizeGripHovered] = imgui.ImVec4(0.741, 0.741, 0.741, 0.67)
+    colors[imgui.Col.ResizeGripActive] = imgui.ImVec4(0.741, 0.741, 0.741, 0.95)
+
+    colors[imgui.Col.Tab] = imgui.ImVec4(0.10, 0.10, 0.10, 1.00)
+    colors[imgui.Col.TabHovered] = imgui.ImVec4(0.40, 0.40, 0.40, 1.00)
+    colors[imgui.Col.TabActive] = imgui.ImVec4(0.50, 0.50, 0.50, 1.00)
+    colors[imgui.Col.TabUnfocused] = imgui.ImVec4(0.05, 0.05, 0.05, 0.97)
+    colors[imgui.Col.TabUnfocusedActive] = imgui.ImVec4(0.30, 0.30, 0.30, 1.00)
+
+    colors[imgui.Col.PlotLines] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.PlotLinesHovered] = imgui.ImVec4(1.00, 0.43, 0.35, 1.00)
+    colors[imgui.Col.PlotHistogram] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.PlotHistogramHovered] = imgui.ImVec4(1.00, 0.60, 0.00, 1.00)
+
+    colors[imgui.Col.TextSelectedBg] = imgui.ImVec4(0.40, 0.40, 0.40, 0.35)
+    colors[imgui.Col.DragDropTarget] = imgui.ImVec4(1.00, 1.00, 0.00, 0.90)
+    colors[imgui.Col.NavHighlight] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.NavWindowingHighlight] = imgui.ImVec4(1.00, 1.00, 1.00, 0.70)
+    colors[imgui.Col.NavWindowingDimBg] = imgui.ImVec4(0.80, 0.80, 0.80, 0.20)
+    colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.05, 0.05, 0.05, 0.95)
 end
 
 function apply_moonmonet_theme()

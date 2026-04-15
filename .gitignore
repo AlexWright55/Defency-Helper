@@ -2,6 +2,7 @@
 luac.out
 .prettierrc.json
 prettier.config.js
+libs
 
 # luarocks build files
 *.src.rock
