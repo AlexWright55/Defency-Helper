@@ -15040,12 +15040,6 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
     imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi, 330 * settings.general.custom_dpi), imgui.Cond.FirstUseEver)
     
-    imgui.PushStyleColor(imgui.Col.WindowBg, imgui.ImVec4(0.06, 0.08, 0.12, 0.96))
-    imgui.PushStyleColor(imgui.Col.Border, imgui.ImVec4(0.2, 0.4, 0.7, 0.5))
-    imgui.PushStyleColor(imgui.Col.TitleBg, imgui.ImVec4(0.08, 0.12, 0.20, 1.0))
-    imgui.PushStyleColor(imgui.Col.TitleBgActive, imgui.ImVec4(0.12, 0.18, 0.28, 1.0))
-    imgui.PushStyleColor(imgui.Col.Separator, imgui.ImVec4(0.3, 0.5, 0.8, 0.4))
-    
     imgui.Begin(getHelperIcon() .. u8(" ”œ–¿¬À≈Õ»≈ œŒƒ–¿«ƒ≈À≈Õ»≈Ã ") .. getHelperIcon(), 
                 MODULE.UnitWindow.Window,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse)
@@ -15141,7 +15135,7 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
             if is_unset then
                 imgui.TextDisabled(u8(name))
             else
-                local nc = imgui.ImVec4(0.9, 0.92, 0.95, 1.0)
+                local nc = imgui.GetStyle().Colors[imgui.Col.Text]
                 if yours then nc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0) end
                 imgui.TextColored(nc, (yours and "> " or "") .. u8(name))
             end
@@ -15151,7 +15145,7 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
             if is_unset then
                 imgui.TextDisabled(u8(leader))
             else
-                local sc = imgui.ImVec4(0.6, 0.6, 0.6, 1.0)
+                local sc = imgui.GetStyle().Colors[imgui.Col.Text]
                 if off then sc = imgui.ImVec4(0.95, 0.35, 0.35, 1.0) end
                 if on then sc = imgui.ImVec4(0.35, 0.9, 0.35, 1.0) end
                 
@@ -15171,7 +15165,7 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
                 if yours then
                     tt = tt .. u8"  [¬˚ ÚÛÚ]"
                 end
-                local tc = imgui.ImVec4(0.85, 0.87, 0.9, 1.0)
+                local tc = imgui.GetStyle().Colors[imgui.Col.Text]
                 if yours then tc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0) end
                 imgui.TextColored(tc, tt)
             end
@@ -15205,13 +15199,10 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
     imgui.SetCursorPosX(sp)
     imgui.SetCursorPosY(imgui.GetCursorPosY() + 3)
     
-    imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.15, 0.25, 0.45, 1.0))
-    imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.25, 0.4, 0.65, 1.0))
     if imgui.Button(u8("Œ¡ÕŒ¬»“‹"), imgui.ImVec2(bw, 24)) then
         sampSendChat("/unit")
         MODULE.UnitWindow.update_timer = os.clock()
     end
-    imgui.PopStyleColor(2)
     
     imgui.SameLine(0, sp)
     imgui.SetCursorPosY(imgui.GetCursorPosY() + 2)
@@ -15225,16 +15216,12 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
     imgui.SameLine(0, sp)
     imgui.SetCursorPosY(imgui.GetCursorPosY() - 2)
     
-    imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.35, 0.15, 0.15, 1.0))
-    imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.55, 0.25, 0.25, 1.0))
     if imgui.Button(u8("«¿ –€“‹"), imgui.ImVec2(bw, 24)) then
         MODULE.UnitWindow.Window[0] = false
         MODULE.UnitWindow.auto_update[0] = false
     end
-    imgui.PopStyleColor(2)
     
     imgui.End()
-    imgui.PopStyleColor(5)
 end)
 ------------------------------- OTHER FUNCTIONS --------------------------
 function parseDivisionDialog(text)
