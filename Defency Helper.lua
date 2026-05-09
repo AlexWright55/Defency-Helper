@@ -191,6 +191,7 @@ function save_settings()
             (errstr or "Unknown"))
     end
 end
+
 function load_settings()
     if not doesDirectoryExist(config_dir) then createDirectory(config_dir) end
     if not doesFileExist(config_dir .. "/Settings.json") then
@@ -241,8 +242,197 @@ function load_settings()
         end
     end
 end
+
 function isMode(mode_type) return settings.general.fraction_mode == mode_type end
 load_settings()
+
+-- =============================================
+-- DEBUG SYSTEM FOR NOTEPAD (TXT with UTF-8 in Debug folder)
+-- =============================================
+local debug_dir = config_dir .. "/Debug"
+
+-- Создаем папку Debug если её нет
+if not doesDirectoryExist(debug_dir) then createDirectory(debug_dir) end
+
+local debug_config = {
+    enabled = false,
+    log_to_file = true,
+    log_to_chat = false,
+    log_to_console = true,
+    file_path = debug_dir .. "/debug_log.txt",
+    max_file_size_mb = 10,
+    auto_clean_on_start = true, -- Очищать при старте
+    use_tabs = true -- Использовать табуляцию для выравнивания
+}
+
+-- Функция для форматирования строки лога
+local function format_debug_line(timestamp, event, details, player_id, value1,
+                                 value2)
+    local parts = {}
+
+    -- Форматируем время
+    table.insert(parts, string.format("[%s]", timestamp))
+
+    -- Тип события (выравнивание по левому краю, 12 символов)
+    table.insert(parts, string.format("[%-12s]", event or "Unknown"))
+
+    -- ID игрока если есть
+    if player_id then
+        table.insert(parts, string.format(" ID:%4s", tostring(player_id)))
+    else
+        table.insert(parts, " ID:    ")
+    end
+
+    -- Основная информация
+    if details then table.insert(parts, " | " .. tostring(details)) end
+
+    -- Дополнительные значения
+    if value1 then
+        table.insert(parts, string.format(" [V1:%s]", tostring(value1)))
+    end
+
+    if value2 then
+        table.insert(parts, string.format(" [V2:%s]", tostring(value2)))
+    end
+
+    return table.concat(parts, " ")
+end
+
+local function init_debug_file()
+    if not debug_config.log_to_file then return end
+
+    -- Создаем папку Debug если её нет
+    if not doesDirectoryExist(debug_dir) then createDirectory(debug_dir) end
+
+    local file_exists = doesFileExist(debug_config.file_path)
+
+    -- Проверка размера и очистка при старте
+    if file_exists and debug_config.auto_clean_on_start then
+        os.remove(debug_config.file_path)
+        file_exists = false
+        print("[DEBUG] Файл логов очищен при старте")
+    end
+
+    -- Создаем файл с заголовком
+    if not file_exists then
+        local file = io.open(debug_config.file_path, "w")
+        if file then
+            -- Записываем UTF-8 BOM
+            file:write("\xEF\xBB\xBF")
+
+            -- Записываем заголовок
+            local header = string.rep("=", 80) .. "\n"
+            header = header .. "  Defency Helper Debug Log\n"
+            header = header .. "  Started: " .. os.date("%d.%m.%Y %H:%M:%S") ..
+                         "\n"
+            header = header .. string.rep("=", 80) .. "\n\n"
+
+            local encoded_header = u8:encode(header)
+            file:write(encoded_header)
+            file:close()
+
+            print("[DEBUG] Файл логов создан: " ..
+                      debug_config.file_path)
+        else
+            print("[DEBUG] Ошибка создания файла логов!")
+        end
+    end
+end
+
+-- Глобальная переменная для буферизации
+local debug_buffer = {}
+local buffer_size = 0
+local max_buffer_size = 25 -- строк для TXT
+
+function debug_log(event, details, player_id, value1, value2)
+    if not debug_config.enabled then return end
+
+    local timestamp = os.date("%H:%M:%S")
+
+    -- Форматируем строку лога
+    local log_line = format_debug_line(timestamp, event, details, player_id,
+                                       value1, value2)
+
+    -- Запись в файл с буферизацией
+    if debug_config.log_to_file then
+        table.insert(debug_buffer, log_line)
+        buffer_size = buffer_size + 1
+
+        -- Записываем буфер при достижении лимита
+        if buffer_size >= max_buffer_size then flush_debug_buffer() end
+    end
+
+    -- Вывод в чат
+    if debug_config.log_to_chat and sampIsLocalPlayerSpawned() then
+        local chat_msg = string.format("{BDBDBD}[DEBUG]{FFFFFF} %s | %s | %s",
+                                       event, details or "",
+                                       player_id and ("ID:" .. player_id) or "")
+        sampAddChatMessage(chat_msg, -1)
+    end
+
+    -- Вывод в консоль
+    if debug_config.log_to_console then
+        print(string.format("[DEBUG] %s | %s | %s", event, details or "",
+                            player_id and ("ID:" .. player_id) or ""))
+    end
+end
+
+-- Функция для сброса буфера в файл
+function flush_debug_buffer()
+    if not debug_config.log_to_file or #debug_buffer == 0 then return end
+
+    local file = io.open(debug_config.file_path, "a")
+    if file then
+        -- Объединяем все строки буфера с переносами
+        local all_lines = ""
+        for _, line in ipairs(debug_buffer) do
+            all_lines = all_lines .. line .. "\n"
+        end
+
+        -- Кодируем через u8:encode
+        local encoded_lines = u8:encode(all_lines)
+        file:write(encoded_lines)
+        file:close()
+
+        -- Очищаем буфер
+        debug_buffer = {}
+        buffer_size = 0
+    end
+end
+
+-- Удобные функции для разных типов событий
+function debug_packet(id, cmd, details)
+    debug_log("PACKET", details, nil, id, cmd)
+end
+
+function debug_damage(player_id, damage, weapon, bodypart)
+    local details = string.format("DMG:%-4d WPN:%-3d BP:%-2d", damage or 0,
+                                  weapon or 0, bodypart or -1)
+    debug_log("DAMAGE", details, player_id, damage, weapon)
+end
+
+function debug_command(player_id, command, args)
+    local details = command or "Unknown"
+    if args then details = details .. " " .. args end
+    debug_log("COMMAND", details, player_id)
+end
+
+function debug_chat(player_id, text, chat_type)
+    local details = text or ""
+    if chat_type then details = "[" .. chat_type .. "] " .. details end
+    debug_log("CHAT", details, player_id)
+end
+
+function debug_error(error_msg, location)
+    local details = error_msg or "Unknown error"
+    if location then details = details .. " at " .. location end
+    debug_log("ERROR", details)
+end
+
+function debug_system(message) debug_log("SYSTEM", message) end
+
+function debug_server(text, color) debug_log("SERVER", text, nil, color) end
+-- =============================================
 
 local function safeDecodeJson(str)
     if type(str) == "table" then return str end
@@ -1528,6 +1718,15 @@ local MODULE = {
         updateDelay = 200,
         updateThread = nil,
         segmentsToGrow = 1
+    },
+    UnitWindow = {
+        Window = imgui.new.bool(),
+        text = "",
+        parsed_data = {},
+        data_sent = false,
+        auto_update = imgui.new.bool(false), -- Чекбокс автообновления
+        update_timer = 0, -- Таймер для обновления
+        update_interval = 5 -- Интервал в секундах
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -3218,9 +3417,9 @@ end
 function processWeaponChange(oldGun, nowGun)
     if not modules.rpgun.data.gunActions.off[oldGun] or
         not modules.rpgun.data.gunActions.on[nowGun] then
-        sampAddChatMessage(
-            '[Defency Helper] {ffffff}Инициализация оружия...',
-            message_color)
+        sampAddChatMessage(script_tag ..
+                               ' {ffffff}Инициализация оружия...',
+                           message_color)
         initialize_guns()
         return
     end
@@ -3318,8 +3517,20 @@ function main()
     MODULE.Update.news = {}
     load_update_news()
 
+    init_debug_file()
+
     while true do
         wait(0)
+
+        -- Автообновление окна подразделений
+        if MODULE.UnitWindow.Window[0] and MODULE.UnitWindow.auto_update[0] then
+            local current_time = os.clock()
+            if current_time - MODULE.UnitWindow.update_timer >=
+                MODULE.UnitWindow.update_interval then
+                sampSendChat("/unit")
+                MODULE.UnitWindow.update_timer = current_time
+            end
+        end
 
         MODULE.InfoWindow.Window[0] = settings.general.use_info_menu
 
@@ -3791,9 +4002,7 @@ function register_command(chat_cmd, cmd_arg, cmd_text, cmd_waiting)
                                         end
                                         sampSendChat(line)
                                         if MODULE.DEBUG then
-                                            sampAddChatMessage(
-                                                '[DEBUG] SEND: ' .. line,
-                                                message_color)
+                                            debug_command(nil, chat_cmd, line)
                                         end
                                     end
                                 else
@@ -4091,6 +4300,50 @@ function initialize_commands()
                                    'выключено!'), message_color)
     end)
 
+    sampRegisterChatCommand("debug_log", function(arg)
+        if arg == "on" then
+            debug_config.enabled = true
+            sampAddChatMessage(script_tag ..
+                                   " {00FF00}Debug запись ВКЛЮЧЕНА",
+                               message_color)
+            debug_system("=== Debug session started at " ..
+                             os.date("%d.%m.%Y %H:%M:%S") .. " ===")
+            flush_debug_buffer()
+        elseif arg == "off" then
+            debug_system("=== Debug session ended at " ..
+                             os.date("%d.%m.%Y %H:%M:%S") .. " ===")
+            flush_debug_buffer()
+            debug_config.enabled = false
+            sampAddChatMessage(script_tag ..
+                                   " {FF0000}Debug запись ВЫКЛЮЧЕНА",
+                               message_color)
+        elseif arg == "chat" then
+            debug_config.log_to_chat = not debug_config.log_to_chat
+            sampAddChatMessage(script_tag .. " Вывод в чат: " ..
+                                   (debug_config.log_to_chat and
+                                       "{00FF00}ВКЛ" or "{FF0000}ВЫКЛ"),
+                               message_color)
+        elseif arg == "flush" then
+            flush_debug_buffer()
+            sampAddChatMessage(script_tag ..
+                                   " {00FF00}Буфер сохранен в файл",
+                               message_color)
+        elseif arg == "clear" then
+            os.remove(debug_config.file_path)
+            init_debug_file()
+            sampAddChatMessage(
+                script_tag .. " Файл логов очищен", message_color)
+        elseif arg == "open" then
+            openLink(debug_config.file_path)
+        elseif arg == "folder" then
+            openLink(debug_dir)
+        else
+            sampAddChatMessage(script_tag ..
+                                   " {ffffff}Использование: /debug_log [on/off/chat/flush/clear/open/folder]",
+                               message_color)
+        end
+    end)
+
     sampRegisterChatCommand("reloadmodule", function(arg)
         if not arg or arg == "" then
             sampAddChatMessage(script_tag ..
@@ -4181,6 +4434,17 @@ function initialize_commands()
     if not isMode('none') then
         sampRegisterChatCommand("charter", function()
             MODULE.UstavView.Window[0] = not MODULE.UstavView.Window[0]
+        end)
+
+        sampRegisterChatCommand("platoon", function()
+            MODULE.UnitWindow.Window[0] = not MODULE.UnitWindow.Window[0]
+        end)
+
+        sampRegisterChatCommand("unit", function()
+            MODULE.UnitWindow.Window[0] = not MODULE.UnitWindow.Window[0]
+            if MODULE.UnitWindow.Window[0] then
+                sampSendChat("/unit") -- Автоматически запрашиваем данные при открытии
+            end
         end)
 
         sampRegisterChatCommand("mb", function(arg)
@@ -6754,18 +7018,18 @@ end
 --------------------------------------------- Events ---------------------------------------------
 function sampev.onShowTextDraw(id, data)
     if MODULE.DEBUG then
-        sampAddChatMessage('[ShowTextDraw] {ffffff}ID ' .. id .. " | Text " ..
-                               data.text .. ' | ModelID ' .. data.modelId ..
-                               " |", message_color)
-        print("[ShowTextDraw] ID " .. id .. " | Text " .. data.text ..
-                  ' | ModelID ' .. data.modelId .. " |")
+        debug_log("ShowTextDraw",
+                  "Text: " .. data.text .. " | ModelID: " .. data.modelId, nil,
+                  id, nil)
     end
+
     if data.text:find('~n~~n~~n~~n~~n~~n~~n~~n~~w~Style: ~r~Sport!') then
         sampAddChatMessage(script_tag ..
                                ' {ffffff}Активирован режим езды Sport!',
                            message_color)
         return false
     end
+
     if data.text:find('~n~~n~~n~~n~~n~~n~~n~~n~~w~Style: ~g~Comfort!') then
         sampAddChatMessage(script_tag ..
                                ' {ffffff}Активирован режим езды Comfort!',
@@ -6773,21 +7037,15 @@ function sampev.onShowTextDraw(id, data)
         return false
     end
 end
+
 function sampev.onSendClickTextDraw(textdrawId)
     if MODULE.DEBUG then
-        sampAddChatMessage('[ClickTextDraw] {ffffff}ID ' .. textdrawId,
-                           message_color)
-        print('[ClickTextDraw] ID ' .. textdrawId)
+        debug_log("ClickTextDraw", "TextDraw ID", nil, textdrawId, nil)
     end
 end
+
 function sampev.onSendTakeDamage(playerId, damage, weapon)
-    if MODULE.DEBUG then
-        sampAddChatMessage('[TakeDamage] {ffffff}ID ' .. playerId ..
-                               " | Damage " .. damage .. " | Weapon " .. weapon,
-                           message_color)
-        print('[TakeDamage] ID ' .. playerId .. " | Damage " .. damage ..
-                  " | Weapon " .. weapon)
-    end
+    if MODULE.DEBUG then debug_damage(playerId, damage, weapon, -1) end
     if playerId ~= 65535 then
         playerId2 = playerId1
         playerId1 = playerId
@@ -6829,14 +7087,9 @@ function sampev.onSendTakeDamage(playerId, damage, weapon)
         end
     end
 end
+
 function sampev.onSendGiveDamage(playerId, damage, weapon, bodypart)
-    if MODULE.DEBUG then
-        sampAddChatMessage('[GiveDamage] {ffffff}ID ' .. playerId ..
-                               " | Damage " .. damage .. " | Weapon " .. weapon ..
-                               " | Body " .. bodypart, message_color)
-        print('[GiveDamage] ID ' .. playerId .. " | Damage " .. damage ..
-                  " | Weapon " .. weapon .. " | Body " .. bodypart)
-    end
+    if MODULE.DEBUG then debug_damage(playerId, damage, weapon, bodypart) end
     if playerId ~= 65535 then
         if (sampGetPlayerNickname(playerId) == 'Flip_Anderson' and
             getServerNumber() == '28') or
@@ -6852,12 +7105,9 @@ function sampev.onSendGiveDamage(playerId, damage, weapon, bodypart)
         end
     end
 end
+
 function sampev.onServerMessage(color, text)
-    if MODULE.DEBUG then
-        sampAddChatMessage('[ServerMessage] {ffffff}Color ' .. color ..
-                               " | Text " .. text, message_color)
-        print('[ServerMessage] Color ' .. color .. " | Text " .. text)
-    end
+    if MODULE.DEBUG then debug_log("ServerMessage", text, nil, color, nil) end
 
     local stripped = text:gsub("{[%x%a]+}", ""):gsub("%s+", "")
     if stripped == "" then return false end
@@ -7062,11 +7312,9 @@ function sampev.onServerMessage(color, text)
         end
     end
 end
+
 function sampev.onSendChat(text)
-    if MODULE.DEBUG then
-        sampAddChatMessage('[SendChat] {ffffff}Text ' .. text, message_color)
-        print('[SendChat] ' .. text)
-    end
+    if MODULE.DEBUG then debug_log("SendChat", text, nil, nil, nil) end
     local ignore = {
         [")"] = true,
         ["))"] = true,
@@ -7091,10 +7339,7 @@ function sampev.onSendChat(text)
 end
 
 function sampev.onSendCommand(text)
-    if MODULE.DEBUG then
-        sampAddChatMessage('[SendCommand] {ffffff}CMD ' .. text, message_color)
-        print('[SendCommand] CMD ' .. text)
-    end
+    if MODULE.DEBUG then debug_log("SendCommand", text, nil, nil, nil) end
 
     if settings.general.ping then
         local chats = {
@@ -7138,13 +7383,18 @@ end
 
 function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
     if MODULE.DEBUG then
-        sampAddChatMessage(
-            '[ShowDialog] {ffffff}ID ' .. dialogid .. ' | Style ' .. style ..
-                ' | Title ' .. title .. ' | Btn1 ' .. button1 .. ' | Btn2 ' ..
-                button2 .. ' | Text ' .. text, message_color)
-        print('[ShowDialog] ID ' .. dialogid .. ' | Style ' .. style ..
-                  ' | Title ' .. title .. ' | Btn1 ' .. button1 .. ' | Btn2 ' ..
-                  button2 .. ' | Text ' .. text)
+        debug_log("ShowDialog", string.format(
+                      "Dialogid: %s | Style: %s | Title: %s | Btn1: %s | Btn2: %s | Text: %s",
+                      dialogid, style, title, button1, button2, text), nil,
+                  dialogid, style)
+    end
+
+    if dialogid == 8772 then
+        MODULE.UnitWindow.text = text
+        MODULE.UnitWindow.parsed_data = parseDivisionDialog(text)
+        MODULE.UnitWindow.Window[0] = true
+        sampSendDialogResponse(dialogid, 0, 0, 0)
+        return false
     end
 
     if check_stats and (title:find('Основная статистика') or
@@ -7630,17 +7880,14 @@ end
 
 function sampev.onCreate3DText(id, color, position, distance, testLOS,
                                attachedPlayerId, attachedVehicleId, text_3d)
-    if MODULE.DEBUG then end
+    if MODULE.DEBUG then
+        debug_log("Create3DText", text_3d, attachedPlayerId, id, color)
+    end
 end
+
 function sampev.onPlayerChatBubble(player_id, color, distance, duration, message)
     if MODULE.DEBUG then
-        sampAddChatMessage('[ChatBubble] {ffffff}ID ' .. player_id ..
-                               ' | Color ' .. color .. ' | Dist ' .. distance ..
-                               ' | Duration ' .. duration .. ' | MSG ' ..
-                               message, message_color)
-        print('[ChatBubble] {ffffff}ID ' .. player_id .. ' | Color ' .. color ..
-                  ' | Dist ' .. distance .. ' | Duration ' .. duration ..
-                  ' | MSG ' .. message)
+        debug_log("ChatBubble", message, player_id, color, distance)
     end
 end
 
@@ -7658,23 +7905,16 @@ addEventHandler('onSendPacket',
                     for i = 1, 8, 1 do
                         table.insert(unrs, raknetBitStreamReadInt8(bs))
                     end
-                    print('[SendPacket] 220 ' .. packettype .. ' ' .. subtype ..
-                              ' | Unread bits ' .. unr .. ' : ' ..
-                              table.concat(unrs, ' '))
-                    sampAddChatMessage(
-                        '[SendPacket] 220 ' .. packettype .. ' ' .. subtype ..
-                            ' | Unread bits ' .. unr .. ' : ' ..
-                            table.concat(unrs, ' '), message_color)
+                    debug_packet(id, packettype,
+                                 "Mobile packet, subtype: " .. subtype)
                 end
             end
         else
             local strlen = raknetBitStreamReadInt16(bs)
             local str = raknetBitStreamReadString(bs, strlen)
             if packettype ~= 0 and packettype ~= 1 and #str > 2 then
-                if MODULE.DEBUG then
-                    sampAddChatMessage('[SendPacket] {ffffff}' .. str,
-                                       message_color)
-                    print("[SendPacket] " .. str)
+                if packettype ~= 0 and packettype ~= 1 then
+                    debug_packet(id, packettype, str)
                 end
             end
         end
@@ -7685,34 +7925,7 @@ addEventHandler('onReceivePacket', function(id, bs)
     if id == 220 then
         local id = raknetBitStreamReadInt8(bs)
         local cmd = raknetBitStreamReadInt8(bs)
-        if MODULE.DEBUG then
-            local function dumpFullBitStream(bs)
-                local bitsLeft = raknetBitStreamGetNumberOfUnreadBits(bs)
-                if not bitsLeft then
-                    print(
-                        "dumpFullBitStream: raknetBitStreamGetNumberOfUnreadBits ошибка!")
-                    return
-                end
-                local bytesLeft = math.floor(bitsLeft / 8)
-                if bytesLeft == 0 then
-                    print(
-                        "dumpFullBitStream: нету доступных байтов для чтения")
-                    return
-                end
-                local bytes = {}
-                for i = 1, bytesLeft do
-                    bytes[i] = raknetBitStreamReadInt8(bs)
-                end
-                local hexStrParts = {}
-                for i, b in ipairs(bytes) do
-                    hexStrParts[i] = string.format("%02X", b)
-                end
-                return (table.concat(hexStrParts, " "))
-            end
-            local dump = dumpFullBitStream(bs)
-            sampAddChatMessage('[ReceivePacket] {ffffff}' .. dump, message_color)
-            print("[ReceivePacket] " .. dump)
-        end
+        if MODULE.DEBUG then debug_packet(id, cmd, "Packet received") end
         if cmd == 153 then
             local carId = raknetBitStreamReadInt16(bs)
             raknetBitStreamIgnoreBits(bs, 8)
@@ -7736,9 +7949,7 @@ addEventHandler('onReceivePacket', function(id, bs)
                                    raknetBitStreamReadString(bs, len) or
                                    raknetBitStreamDecodeString(bs, len + encoded)
                 if MODULE.DEBUG then
-                    sampAddChatMessage('[ReceivePacket] {ffffff}' .. string,
-                                       message_color)
-                    print("[ReceivePacket] " .. string)
+                    debug_packet(id, cmd, "Mobile CEF string: " .. string)
                 end
             end
         else
@@ -7751,9 +7962,7 @@ addEventHandler('onReceivePacket', function(id, bs)
                                 raknetBitStreamReadString(bs, length)
 
                 if MODULE.DEBUG then
-                    sampAddChatMessage('[ReceivePacket] {ffffff}' .. cmd,
-                                       message_color)
-                    print("[ReceivePacket] " .. cmd)
+                    debug_packet(id, cmd, "Packet received")
                 end
 
                 if (cmd:find('findGame') and
@@ -7771,6 +7980,7 @@ addEventHandler('onReceivePacket', function(id, bs)
         end
     end
 end)
+
 addEventHandler('onReceiveRpc', function(id, bs)
     if id == 123 then
         local carId = raknetBitStreamReadInt16(bs)
@@ -14825,7 +15035,282 @@ imgui.OnFrame(function() return MODULE.Snake.Window[0] end, function(player)
 
     imgui.End()
 end)
+
+imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi, 330 * settings.general.custom_dpi), imgui.Cond.FirstUseEver)
+    
+    imgui.PushStyleColor(imgui.Col.WindowBg, imgui.ImVec4(0.06, 0.08, 0.12, 0.96))
+    imgui.PushStyleColor(imgui.Col.Border, imgui.ImVec4(0.2, 0.4, 0.7, 0.5))
+    imgui.PushStyleColor(imgui.Col.TitleBg, imgui.ImVec4(0.08, 0.12, 0.20, 1.0))
+    imgui.PushStyleColor(imgui.Col.TitleBgActive, imgui.ImVec4(0.12, 0.18, 0.28, 1.0))
+    imgui.PushStyleColor(imgui.Col.Separator, imgui.ImVec4(0.3, 0.5, 0.8, 0.4))
+    
+    imgui.Begin(getHelperIcon() .. u8(" УПРАВЛЕНИЕ ПОДРАЗДЕЛЕНИЕМ ") .. getHelperIcon(), 
+                MODULE.UnitWindow.Window,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse)
+    change_dpi()
+    
+    local divisions = MODULE.UnitWindow.parsed_data
+    
+    -- === Верхняя панель ===
+    if MODULE.UnitWindow.auto_update[0] then
+        local time_left = MODULE.UnitWindow.update_interval - (os.clock() - MODULE.UnitWindow.update_timer)
+        if time_left < 0 then time_left = 0 end
+        local progress = 1.0 - (time_left / MODULE.UnitWindow.update_interval)
+        
+        imgui.TextColored(imgui.ImVec4(0.3, 1.0, 0.3, 1.0), fa.ROTATE .. u8(" АВТО"))
+        imgui.SameLine()
+        imgui.Text(string.format("%.1fs", time_left))
+        imgui.SameLine()
+        imgui.ProgressBar(progress, imgui.ImVec2(40 * settings.general.custom_dpi, 10 * settings.general.custom_dpi), "")
+    else
+        imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1.0), fa.ROTATE .. u8(" Авто: выкл"))
+    end
+    
+    local count_text = u8("Подразделений: " .. #divisions)
+    imgui.SameLine()
+    imgui.SetCursorPosX(imgui.GetWindowWidth() - imgui.CalcTextSize(count_text).x - 20)
+    imgui.TextColored(imgui.ImVec4(0.7, 0.7, 0.8, 1.0), count_text)
+    
+    imgui.Separator()
+    
+    -- === Заголовки таблицы ===
+    imgui.Columns(3, "##header_cols", true)
+    imgui.SetColumnWidth(0, 280 * settings.general.custom_dpi)
+    imgui.SetColumnWidth(1, 240 * settings.general.custom_dpi)
+    imgui.SetColumnWidth(2, 300 * settings.general.custom_dpi)
+    
+    local hc = imgui.ImVec4(1.0, 0.85, 0.3, 1.0)
+    imgui.TextColored(hc, u8("НАЗВАНИЕ ПОДРАЗДЕЛЕНИЯ"))
+    imgui.NextColumn()
+    imgui.TextColored(hc, u8("ЛИДЕР"))
+    imgui.NextColumn()
+    imgui.TextColored(hc, u8("ЗАДАНИЕ"))
+    imgui.Columns(1)
+    
+    local dl = imgui.GetWindowDrawList()
+    local cp = imgui.GetCursorScreenPos()
+    dl:AddLine(
+        imgui.ImVec2(cp.x + 5, cp.y + 2), 
+        imgui.ImVec2(cp.x + imgui.GetWindowWidth() - 15, cp.y + 2), 
+        imgui.GetColorU32Vec4(imgui.ImVec4(0.3, 0.5, 0.8, 0.6)), 2.0
+    )
+    imgui.Dummy(imgui.ImVec2(0, 4))
+    
+    -- === Строки данных ===
+    if #divisions > 0 then
+        for i, div in ipairs(divisions) do
+            local name = div.name or " "
+            local leader = div.leader or " "
+            local task = div.task or " "
+            local status = div.leader_status or ""
+            local your_div = div.your_division or ""
+            
+            -- Проверяем на "не установлено"
+            local is_unset = (name:find("Не установлено") ~= nil) or
+                            (leader:find("Не установлен") ~= nil) or
+                            (task:find("Не установлено") ~= nil)
+            
+            local off = status:find("OFF")
+            local on = status:find("ON") or status:find("ID:")
+            local yours = (your_div ~= "" and your_div:find("Вы тут") ~= nil)
+            
+            -- Подсветка для вашего подразделения
+            if yours and not is_unset then
+                local rp = imgui.GetCursorScreenPos()
+                dl:AddRectFilled(
+                    imgui.ImVec2(rp.x + 3, rp.y - 1), 
+                    imgui.ImVec2(rp.x + imgui.GetWindowWidth() - 6, rp.y + 20 * settings.general.custom_dpi),
+                    imgui.GetColorU32Vec4(imgui.ImVec4(0.2, 0.4, 0.8, 0.08)), 4
+                )
+                dl:AddRectFilled(
+                    imgui.ImVec2(rp.x + 3, rp.y - 1), 
+                    imgui.ImVec2(rp.x + 6, rp.y + 20 * settings.general.custom_dpi),
+                    imgui.GetColorU32Vec4(imgui.ImVec4(0.3, 0.5, 0.9, 0.5)), 4
+                )
+            end
+            
+            -- Колонки для строки
+            imgui.Columns(3, "##row" .. i, true)
+            imgui.SetColumnWidth(0, 280 * settings.general.custom_dpi)
+            imgui.SetColumnWidth(1, 240 * settings.general.custom_dpi)
+            imgui.SetColumnWidth(2, 300 * settings.general.custom_dpi)
+            
+            -- Колонка 1: Название
+            if is_unset then
+                imgui.TextDisabled(u8(name))
+            else
+                local nc = imgui.ImVec4(0.9, 0.92, 0.95, 1.0)
+                if yours then nc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0) end
+                imgui.TextColored(nc, (yours and "> " or "") .. u8(name))
+            end
+            imgui.NextColumn()
+            
+            -- Колонка 2: Лидер
+            if is_unset then
+                imgui.TextDisabled(u8(leader))
+            else
+                local sc = imgui.ImVec4(0.6, 0.6, 0.6, 1.0)
+                if off then sc = imgui.ImVec4(0.95, 0.35, 0.35, 1.0) end
+                if on then sc = imgui.ImVec4(0.35, 0.9, 0.35, 1.0) end
+                
+                local lt = u8(leader)
+                if status ~= "" then
+                    lt = lt .. " [" .. status .. "]"
+                end
+                imgui.TextColored(sc, lt)
+            end
+            imgui.NextColumn()
+            
+            -- Колонка 3: Задание
+            if is_unset then
+                imgui.TextDisabled(u8(task))
+            else
+                local tt = u8(task)
+                if yours then
+                    tt = tt .. u8"  [Вы тут]"
+                end
+                local tc = imgui.ImVec4(0.85, 0.87, 0.9, 1.0)
+                if yours then tc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0) end
+                imgui.TextColored(tc, tt)
+            end
+            imgui.NextColumn()
+            
+            imgui.Columns(1)
+            
+            if i < #divisions then
+                local sp = imgui.GetCursorScreenPos()
+                dl:AddLine(
+                    imgui.ImVec2(sp.x + 10, sp.y + 1), 
+                    imgui.ImVec2(sp.x + imgui.GetWindowWidth() - 20, sp.y + 1), 
+                    imgui.GetColorU32Vec4(imgui.ImVec4(0.15, 0.2, 0.3, 0.3)), 1.0
+                )
+                imgui.Dummy(imgui.ImVec2(0, 2))
+            end
+        end
+    else
+        imgui.SetCursorPosY(imgui.GetCursorPosY() + 50)
+        imgui.CenterText(u8("Нет данных"))
+    end
+    
+    -- === Кнопки ===
+    imgui.SetCursorPosY(imgui.GetWindowHeight() - 38 * settings.general.custom_dpi)
+    imgui.Separator()
+    
+    local bw = 130 * settings.general.custom_dpi
+    local cw = 170 * settings.general.custom_dpi
+    local sp = (imgui.GetWindowWidth() - bw * 2 - cw) / 4
+    
+    imgui.SetCursorPosX(sp)
+    imgui.SetCursorPosY(imgui.GetCursorPosY() + 3)
+    
+    imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.15, 0.25, 0.45, 1.0))
+    imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.25, 0.4, 0.65, 1.0))
+    if imgui.Button(u8("ОБНОВИТЬ"), imgui.ImVec2(bw, 24)) then
+        sampSendChat("/unit")
+        MODULE.UnitWindow.update_timer = os.clock()
+    end
+    imgui.PopStyleColor(2)
+    
+    imgui.SameLine(0, sp)
+    imgui.SetCursorPosY(imgui.GetCursorPosY() + 2)
+    if imgui.Checkbox(u8("АВТО (" .. MODULE.UnitWindow.update_interval .. "с)"), MODULE.UnitWindow.auto_update) then
+        if MODULE.UnitWindow.auto_update[0] then
+            MODULE.UnitWindow.update_timer = os.clock()
+            sampSendChat("/unit")
+        end
+    end
+    
+    imgui.SameLine(0, sp)
+    imgui.SetCursorPosY(imgui.GetCursorPosY() - 2)
+    
+    imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.35, 0.15, 0.15, 1.0))
+    imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.55, 0.25, 0.25, 1.0))
+    if imgui.Button(u8("ЗАКРЫТЬ"), imgui.ImVec2(bw, 24)) then
+        MODULE.UnitWindow.Window[0] = false
+        MODULE.UnitWindow.auto_update[0] = false
+    end
+    imgui.PopStyleColor(2)
+    
+    imgui.End()
+    imgui.PopStyleColor(5)
+end)
 ------------------------------- OTHER FUNCTIONS --------------------------
+function parseDivisionDialog(text)
+    local divisions = {}
+    if not text then return divisions end
+
+    -- Убираем цветовые коды
+    local clean_text = text:gsub("{[%x%a]+}", "")
+    
+    -- Разбиваем на строки
+    local lines = {}
+    for line in clean_text:gmatch("[^\r\n]+") do
+        -- Убираем пробелы по краям
+        line = line:match("^%s*(.-)%s*$") or ""
+        if line ~= "" and 
+           not line:find("Название подразделения") and
+           not line:find("УПРАВЛЕНИЕ ПОДРАЗДЕЛЕНИЕМ") and
+           not line:find("%[ПРИНЯТЬ%]") and
+           not line:find("%[ОТМЕНА%]") then
+            table.insert(lines, line)
+        end
+    end
+
+    -- Обрабатываем строки
+    for _, line in ipairs(lines) do
+        -- Разбиваем строку по табуляции
+        local parts = {}
+        for part in line:gmatch("[^\t]+") do
+            part = part:match("^%s*(.-)%s*$") or ""
+            table.insert(parts, part)
+        end
+        
+        if #parts >= 3 then
+            local name = parts[1] or ""
+            local leader_full = parts[2] or ""
+            local task_full = parts[3] or ""
+            local your_div = ""
+            
+            -- Проверяем 4-ю часть (Ваше подразделение)
+            if #parts >= 4 and parts[4] ~= "" then
+                your_div = parts[4]
+            end
+            
+            -- Проверяем, есть ли [Вы тут] в задании
+            if task_full:find("%[Вы тут%]") then
+                your_div = "Вы тут"
+                task_full = task_full:gsub("%s*%[Вы тут%]%s*", "")
+            end
+            
+            -- Извлекаем статус из лидера
+            local leader = leader_full
+            local leader_status = ""
+            
+            local status_start, status_end = leader_full:find("%[([^%]]+)%]")
+            if status_start then
+                leader_status = leader_full:sub(status_start + 1, status_end - 1)
+                leader = leader_full:sub(1, status_start - 1):match("^%s*(.-)%s*$") or leader_full
+            end
+            
+            if name == "" then name = " " end
+            if leader == "" then leader = " " end
+            if task_full == "" then task_full = " " end
+            
+            table.insert(divisions, {
+                name = name,
+                leader = leader,
+                leader_status = leader_status,
+                task = task_full,
+                your_division = your_div
+            })
+        end
+    end
+
+    return divisions
+end
+
 -- Функция для проверки, открыто ли хотя бы одно окно хелпера
 function isAnyHelperWindowOpen()
     return MODULE.Main.Window[0] or MODULE.Binder.Window[0] or
@@ -14837,7 +15322,7 @@ function isAnyHelperWindowOpen()
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
                MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
                MODULE.ClearList.Window[0] or MODULE.Help.Window[0] or
-               MODULE.Snake.Window[0]
+               MODULE.Snake.Window[0] or MODULE.UnitWindow.Window[0]
 end
 
 -- Функция /time+F8
@@ -16097,7 +16582,8 @@ function apply_hacker_theme()
 
     colors[imgui.Col.ScrollbarBg] = imgui.ImVec4(0.02, 0.02, 0.02, 0.53)
     colors[imgui.Col.ScrollbarGrab] = imgui.ImVec4(0.55, 0.55, 0.55, 1.00)
-    colors[imgui.Col.ScrollbarGrabHovered] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
+    colors[imgui.Col.ScrollbarGrabHovered] =
+        imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
     colors[imgui.Col.ScrollbarGrabActive] = imgui.ImVec4(0.45, 0.45, 0.45, 1.00)
 
     colors[imgui.Col.CheckMark] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
@@ -16117,7 +16603,8 @@ function apply_hacker_theme()
     colors[imgui.Col.SeparatorActive] = imgui.ImVec4(0.60, 0.60, 0.60, 1.00)
 
     colors[imgui.Col.ResizeGrip] = imgui.ImVec4(0.741, 0.741, 0.741, 0.25)
-    colors[imgui.Col.ResizeGripHovered] = imgui.ImVec4(0.741, 0.741, 0.741, 0.67)
+    colors[imgui.Col.ResizeGripHovered] =
+        imgui.ImVec4(0.741, 0.741, 0.741, 0.67)
     colors[imgui.Col.ResizeGripActive] = imgui.ImVec4(0.741, 0.741, 0.741, 0.95)
 
     colors[imgui.Col.Tab] = imgui.ImVec4(0.10, 0.10, 0.10, 1.00)
@@ -16129,12 +16616,14 @@ function apply_hacker_theme()
     colors[imgui.Col.PlotLines] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
     colors[imgui.Col.PlotLinesHovered] = imgui.ImVec4(1.00, 0.43, 0.35, 1.00)
     colors[imgui.Col.PlotHistogram] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
-    colors[imgui.Col.PlotHistogramHovered] = imgui.ImVec4(1.00, 0.60, 0.00, 1.00)
+    colors[imgui.Col.PlotHistogramHovered] =
+        imgui.ImVec4(1.00, 0.60, 0.00, 1.00)
 
     colors[imgui.Col.TextSelectedBg] = imgui.ImVec4(0.40, 0.40, 0.40, 0.35)
     colors[imgui.Col.DragDropTarget] = imgui.ImVec4(1.00, 1.00, 0.00, 0.90)
     colors[imgui.Col.NavHighlight] = imgui.ImVec4(0.741, 0.741, 0.741, 1.00)
-    colors[imgui.Col.NavWindowingHighlight] = imgui.ImVec4(1.00, 1.00, 1.00, 0.70)
+    colors[imgui.Col.NavWindowingHighlight] =
+        imgui.ImVec4(1.00, 1.00, 1.00, 0.70)
     colors[imgui.Col.NavWindowingDimBg] = imgui.ImVec4(0.80, 0.80, 0.80, 0.20)
     colors[imgui.Col.ModalWindowDimBg] = imgui.ImVec4(0.05, 0.05, 0.05, 0.95)
 end
