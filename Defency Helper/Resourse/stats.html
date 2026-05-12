@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Статистика персонажа</title>
+    <title>РЎС‚Р°С‚РёСЃС‚РёРєР° РїРµСЂСЃРѕРЅР°Р¶Р°</title>
     <style>
         * {
             margin: 0;
@@ -193,40 +193,40 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="nickname" id="nickname">Загрузка...</div>
+            <div class="nickname" id="nickname">Р—Р°РіСЂСѓР·РєР°...</div>
             <div class="login-time" id="loginTime"></div>
         </div>
 
         <div class="section">
             <div class="section-title">
-                <span class="icon">??</span> Основная информация
+                <span class="icon">??</span> РћСЃРЅРѕРІРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ
             </div>
             <div id="mainInfo"></div>
         </div>
 
         <div class="section">
             <div class="section-title">
-                <span class="icon">??</span> Характеристики
+                <span class="icon">??</span> РҐР°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё
             </div>
             <div class="stats-grid" id="characteristics"></div>
         </div>
 
         <div class="section">
             <div class="section-title">
-                <span class="icon">??</span> Финансы
+                <span class="icon">??</span> Р¤РёРЅР°РЅСЃС‹
             </div>
             <div id="finances"></div>
         </div>
 
         <div class="section" id="statusSection" style="display:none;">
             <div class="section-title">
-                <span class="icon">?</span> Статус
+                <span class="icon">?</span> РЎС‚Р°С‚СѓСЃ
             </div>
             <div id="statusInfo"></div>
         </div>
 
-        <button class="btn-refresh" onclick="refreshStats()">?? Обновить статистику</button>
-        <div class="footer">Defency Helper CEF Stats | Обновлено: <span id="updateTime">-</span></div>
+        <button class="btn-refresh" onclick="refreshStats()">?? РћР±РЅРѕРІРёС‚СЊ СЃС‚Р°С‚РёСЃС‚РёРєСѓ</button>
+        <div class="footer">Defency Helper CEF Stats | РћР±РЅРѕРІР»РµРЅРѕ: <span id="updateTime">-</span></div>
     </div>
 
     <script>
@@ -240,11 +240,11 @@
             try {
                 var data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
                 
-                document.getElementById('nickname').textContent = data.nickname || 'Неизвестно';
+                document.getElementById('nickname').textContent = data.nickname || 'РќРµРёР·РІРµСЃС‚РЅРѕ';
                 document.getElementById('loginTime').textContent = data.loginTime || '';
                 document.getElementById('updateTime').textContent = data.statsUpdated || os.date("%H:%M:%S");
 
-                // Основная информация
+                // РћСЃРЅРѕРІРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ
                 var mainInfo = document.getElementById('mainInfo');
                 mainInfo.innerHTML = '';
                 if (data.mainInfo) {
@@ -258,7 +258,7 @@
                     });
                 }
 
-                // Характеристики
+                // РҐР°СЂР°РєС‚РµСЂРёСЃС‚РёРєРё
                 var chars = document.getElementById('characteristics');
                 chars.innerHTML = '';
                 if (data.characteristics) {
@@ -272,7 +272,7 @@
                     });
                 }
 
-                // Финансы
+                // Р¤РёРЅР°РЅСЃС‹
                 var finances = document.getElementById('finances');
                 finances.innerHTML = '';
                 if (data.finances) {
@@ -286,7 +286,7 @@
                     });
                 }
 
-                // Статус
+                // РЎС‚Р°С‚СѓСЃ
                 if (data.status && data.status !== '') {
                     document.getElementById('statusSection').style.display = 'block';
                     var statusInfo = document.getElementById('statusInfo');
@@ -298,7 +298,7 @@
             }
         }
 
-        // Проверяем, есть ли отложенные данные
+        // РџСЂРѕРІРµСЂСЏРµРј, РµСЃС‚СЊ Р»Рё РѕС‚Р»РѕР¶РµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ
         if (window._pendingStatsData) {
             updateStats(window._pendingStatsData);
             window._pendingStatsData = null;
