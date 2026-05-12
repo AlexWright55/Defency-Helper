@@ -6,4 +6,5 @@
 [Defency Helper Vehicles](/SmartVEH/Vehicles.json)<br>
 [Defency Helper Update-info](/Defency Helper/Update-info.json)<br>
 [Charter Prison](/SmartCharterPrison/28/SmartCharter.json)<br>
-[Charter Army](/SmartCharterArmy/28/SmartCharter.json)
+[Charter Army](/SmartCharterArmy/28/SmartCharter.json)<br>
+[Defency Helper Stats](/Defency Helper/Resource/stats.html)
