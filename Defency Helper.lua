@@ -165,11 +165,8 @@ local default_settings = {
     time_hud = false,
     display_map_distance = {user = false, server = false},
     systems_settings = {
-        -- Модуль "Новые окна" (настройки отображения окон)
         new_windows = {
-            enabled = {
-                dialog_unit = true -- Новое окно на команду /unit
-            }
+            enabled = {dialog_unit = false, dialog_unit_playerlist = false}
         }
     }
 }
@@ -179,7 +176,9 @@ local default_settings = {
 function save_systems_settings()
     if not settings.systems_settings then
         settings.systems_settings = {
-            new_windows = {enabled = {dialog_unit = true}}
+            new_windows = {
+                enabled = {dialog_unit = false, dialog_unit_playerlist = false}
+            }
         }
     else
         -- рекурсивное обновление
@@ -204,7 +203,9 @@ end
 function load_systems_settings()
     if not settings.systems_settings then
         settings.systems_settings = {
-            new_windows = {enabled = {dialog_unit = true}}
+            new_windows = {
+                enabled = {dialog_unit = false, dialog_unit_playerlist = false}
+            }
         }
     else
         -- синхронизация с дефолтными настройками
@@ -1474,6 +1475,7 @@ local modules = {
         data = {}
     }
 }
+
 function load_module(key)
     local obj = modules[key]
     if not obj then
@@ -1804,6 +1806,13 @@ local MODULE = {
         temp_data = {},
         show_rename_popup = false, -- НОВОЕ: флаг для открытия popup переименования
         show_task_popup = false -- НОВОЕ: флаг для открытия popup изменения задания
+    },
+    UnitPlayerList = {
+        Window = imgui.new.bool(false),
+        data = {}, -- массив с данными игроков
+        filter = imgui.new.char[256](''),
+        sort_column = imgui.new.int(1), -- 1=ник, 2=ранг, 3=локация
+        sort_desc = imgui.new.bool(false)
     },
     JailInfo = {
         window = imgui.new.bool(),
@@ -7515,6 +7524,76 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                   dialogid, style)
     end
 
+    if style == 0 and button1 == "Понял" and button2 == "" then
+        local clean_text = text:gsub("{[%x%a]+}", "")
+
+        if clean_text:find("успешно") or
+            clean_text:find("назначили") or
+            clean_text:find("изменили") or
+            clean_text:find("переименовали") or
+            clean_text:find("убрали") then
+
+            sampSendDialogResponse(dialogid, 0, 0, 0)
+            return false
+        end
+    end
+
+    if style == 5 and button1 == "Закрыть" then
+        local clean_text = text:gsub("{[%x%a]+}", "")
+        local clean_title = title:gsub("{[%x%a]+}", "")
+
+        local use_playerlist_window = settings.systems_settings and
+                                          settings.systems_settings.new_windows and
+                                          settings.systems_settings.new_windows
+                                              .enabled and
+                                          settings.systems_settings.new_windows
+                                              .enabled.dialog_unit_playerlist
+
+        if use_playerlist_window and clean_text:find("\t") and
+            (clean_text:find("Ник") or clean_text:find("Игрок")) then
+            local players = {}
+            local firstLine = true
+
+            for line in clean_text:gmatch("[^\r\n]+") do
+                if line ~= "" then
+                    if firstLine then
+                        firstLine = false
+                    else
+                        local parts = {}
+                        for part in line:gmatch("[^\t]+") do
+                            table.insert(parts, part)
+                        end
+
+                        if #parts >= 3 then
+                            table.insert(players, {
+                                nick = parts[1] or "",
+                                rank = parts[2] or "",
+                                location = parts[3] or ""
+                            })
+                        elseif #parts >= 2 then
+                            table.insert(players, {
+                                nick = parts[1] or "",
+                                rank = parts[2] or "",
+                                location = ""
+                            })
+                        end
+                    end
+                end
+            end
+
+            if #players > 0 then
+                MODULE.UnitPlayerList.data = players
+                MODULE.UnitPlayerList.title =
+                    clean_title ~= "" and clean_title or
+                        "Список участников отдела"
+                MODULE.UnitPlayerList.Window[0] = true
+            end
+
+            sampSendDialogResponse(dialogid, 0, 0, 0)
+            return false
+        end
+    end
+
     -- Проверяем, ждём ли мы данные о наказаниях
     if MODULE.JailInfo.waiting and title and title:find("ИНФОРМАЦИЯ") then
         MODULE.JailInfo.data = parseJailInfo(text)
@@ -12087,13 +12166,20 @@ function render_fractions_functions()
                                         " Настройка новых окон "))
                             imgui.Separator()
 
-                            -- ИСПРАВЛЕНИЕ: создаём временную таблицу для чекбокса
                             local check_value = imgui.new.bool(
                                                     temp["dialog_unit"])
                             if imgui.Checkbox(u8(
                                                   "Управление отделами (новое окно /unit)"),
                                               check_value) then
                                 temp["dialog_unit"] = check_value[0]
+                            end
+
+                            local check_value = imgui.new.bool(
+                                                    temp["dialog_unit_playerlist"])
+                            if imgui.Checkbox(u8(
+                                                  "Список сотрудников отдела(новое окно)"),
+                                              check_value) then
+                                temp["dialog_unit_playerlist"] = check_value[0]
                             end
 
                             imgui.Separator()
@@ -12106,9 +12192,9 @@ function render_fractions_functions()
                         local btn_width = (imgui.GetWindowWidth() - 30) / 2
                         if imgui.Button(u8("Сбросить"),
                                         imgui.ImVec2(btn_width, 0)) then
-                            for k, v in pairs(
-                                            systems_settings[module_key].enabled) do
-                                temp[k] = v
+                            -- Сбрасываем ВСЕ настройки модуля в false (выключено)
+                            for k, _ in pairs(temp) do
+                                temp[k] = false
                             end
                         end
                         imgui.SameLine()
@@ -12255,6 +12341,14 @@ function render_fractions_functions()
                                 temp["dialog_unit"] = check_value[0]
                             end
 
+                            local check_value = imgui.new.bool(
+                                                    temp["dialog_unit_playerlist"])
+                            if imgui.Checkbox(u8(
+                                                  "Список сотрудник отдела(новое окно)"),
+                                              check_value) then
+                                temp["dialog_unit_playerlist"] = check_value[0]
+                            end
+
                             imgui.Separator()
                             imgui.TextColored(
                                 imgui.ImVec4(0.75, 0.75, 0.75, 0.9), u8(
@@ -12265,9 +12359,9 @@ function render_fractions_functions()
                         local btn_width = (imgui.GetWindowWidth() - 30) / 2
                         if imgui.Button(u8("Сбросить"),
                                         imgui.ImVec2(btn_width, 0)) then
-                            for k, v in pairs(
-                                            systems_settings[module_key].enabled) do
-                                temp[k] = v
+                            -- Сбрасываем ВСЕ настройки модуля в false (выключено)
+                            for k, _ in pairs(temp) do
+                                temp[k] = false
                             end
                         end
                         imgui.SameLine()
@@ -15621,7 +15715,7 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end,
     local hc = imgui.ImVec4(1.0, 0.85, 0.3, 1.0)
     imgui.TextColored(hc, u8("НАЗВАНИЕ ОТДЕЛА"))
     imgui.NextColumn()
-    imgui.TextColored(hc, u8("ЛИДЕР"))
+    imgui.TextColored(hc, u8("НАЧАЛЬНИК ОТДЕЛА"))
     imgui.NextColumn()
     imgui.TextColored(hc, u8("ЗАДАНИЕ"))
     imgui.NextColumn()
@@ -16018,6 +16112,232 @@ imgui.OnFrame(function() return MODULE.UnitManagementDialog.Window[0] end,
     imgui.End()
 end)
 
+imgui.OnFrame(function() return MODULE.UnitPlayerList.Window[0] end,
+              function(player)
+    -- ФИКСИРОВАННАЯ ПОЗИЦИЯ (центр экрана)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
+
+    -- ФИКСИРОВАННЫЙ РАЗМЕР
+    imgui.SetNextWindowSize(imgui.ImVec2(750 * settings.general.custom_dpi,
+                                         500 * settings.general.custom_dpi),
+                            imgui.Cond.Always)
+
+    imgui.Begin(fa.USERS .. " " .. u8(MODULE.UnitPlayerList.title) .. " " ..
+                    fa.USERS, MODULE.UnitPlayerList.Window,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+                    imgui.WindowFlags.NoMove)
+    change_dpi()
+
+    -- Верхняя панель
+    imgui.PushItemWidth(300 * settings.general.custom_dpi)
+    imgui.InputTextWithHint("##player_filter",
+                            u8("Поиск по нику..."),
+                            MODULE.UnitPlayerList.filter, 256)
+    imgui.PopItemWidth()
+
+    imgui.SameLine()
+    imgui.Text(u8(string.format("Всего: %d", #MODULE.UnitPlayerList.data)))
+    imgui.Separator()
+
+    -- Функция очистки текста
+    local function cleanText(str)
+        if not str then return "" end
+        str = str:gsub("{[%x%a]+}", "") -- убираем цветовые коды
+        str = str:gsub("%[%d+%]", "") -- убираем [ID]
+        str = str:gsub("%s+", " ") -- убираем лишние пробелы
+        str = str:gsub("^%s+", "")
+        str = str:gsub("%s+$", "")
+        return str
+    end
+
+    -- Заголовки таблицы
+    imgui.Columns(3, "##unitplayer_columns", false)
+    imgui.SetColumnWidth(0, 280 * settings.general.custom_dpi)
+    imgui.SetColumnWidth(1, 180 * settings.general.custom_dpi)
+    imgui.SetColumnWidth(2, 260 * settings.general.custom_dpi)
+
+    -- Сортировка по нику
+    local sort_col = MODULE.UnitPlayerList.sort_column[0]
+    local sort_desc = MODULE.UnitPlayerList.sort_desc[0]
+
+    -- Используем стрелки из FontAwesome вместо символов Юникода
+    local function get_sort_symbol(column)
+        if sort_col == column then
+            if sort_desc then
+                return " " .. fa.ARROW_DOWN -- стрелка вниз
+            else
+                return " " .. fa.ARROW_UP -- стрелка вверх
+            end
+        end
+        return ""
+    end
+
+    if imgui.Selectable(u8("НИК") .. get_sort_symbol(1), false,
+                        imgui.SelectableFlags.None,
+                        imgui.ImVec2(280 * settings.general.custom_dpi, 0)) then
+        if sort_col == 1 then
+            MODULE.UnitPlayerList.sort_desc[0] = not sort_desc
+        else
+            MODULE.UnitPlayerList.sort_column[0] = 1
+            MODULE.UnitPlayerList.sort_desc[0] = false
+        end
+    end
+    imgui.NextColumn()
+
+    -- Сортировка по рангу
+    if imgui.Selectable(u8("РАНГ") .. get_sort_symbol(2), false,
+                        imgui.SelectableFlags.None,
+                        imgui.ImVec2(180 * settings.general.custom_dpi, 0)) then
+        if sort_col == 2 then
+            MODULE.UnitPlayerList.sort_desc[0] = not sort_desc
+        else
+            MODULE.UnitPlayerList.sort_column[0] = 2
+            MODULE.UnitPlayerList.sort_desc[0] = false
+        end
+    end
+    imgui.NextColumn()
+
+    -- Сортировка по локации
+    if imgui.Selectable(
+        u8("МЕСТОПОЛОЖЕНИЕ") .. get_sort_symbol(3), false,
+        imgui.SelectableFlags.None,
+        imgui.ImVec2(260 * settings.general.custom_dpi, 0)) then
+        if sort_col == 3 then
+            MODULE.UnitPlayerList.sort_desc[0] = not sort_desc
+        else
+            MODULE.UnitPlayerList.sort_column[0] = 3
+            MODULE.UnitPlayerList.sort_desc[0] = false
+        end
+    end
+    imgui.NextColumn()
+
+    imgui.Columns(1)
+    imgui.Separator()
+
+    -- Сортируем данные
+    local data_copy = {}
+    for _, v in ipairs(MODULE.UnitPlayerList.data) do
+        table.insert(data_copy, v)
+    end
+
+    sort_col = MODULE.UnitPlayerList.sort_column[0]
+    sort_desc = MODULE.UnitPlayerList.sort_desc[0]
+
+    table.sort(data_copy, function(a, b)
+        local clean_a_nick = cleanText(a.nick):lower()
+        local clean_b_nick = cleanText(b.nick):lower()
+        local clean_a_rank = cleanText(a.rank):lower()
+        local clean_b_rank = cleanText(b.rank):lower()
+        local clean_a_loc = cleanText(a.location):lower()
+        local clean_b_loc = cleanText(b.location):lower()
+
+        if sort_col == 1 then
+            if sort_desc then
+                return clean_a_nick > clean_b_nick
+            else
+                return clean_a_nick < clean_b_nick
+            end
+        elseif sort_col == 2 then
+            local num1 = tonumber(clean_a_rank:match("%((%d+)%)")) or
+                             clean_a_rank
+            local num2 = tonumber(clean_b_rank:match("%((%d+)%)")) or
+                             clean_b_rank
+            if type(num1) == "number" and type(num2) == "number" then
+                if sort_desc then
+                    return num1 > num2
+                else
+                    return num1 < num2
+                end
+            else
+                if sort_desc then
+                    return tostring(num1) > tostring(num2)
+                else
+                    return tostring(num1) < tostring(num2)
+                end
+            end
+        else
+            if sort_desc then
+                return clean_a_loc > clean_b_loc
+            else
+                return clean_a_loc < clean_b_loc
+            end
+        end
+    end)
+
+    -- Фильтруем и отображаем
+    local filter_text = u8:decode(ffi.string(MODULE.UnitPlayerList.filter))
+                            :lower()
+    local displayed = 0
+
+    if imgui.BeginChild("##unitplayer_content",
+                        imgui.ImVec2(0, -45 * settings.general.custom_dpi),
+                        true, imgui.WindowFlags.NoScrollbar) then
+
+        for _, player in ipairs(data_copy) do
+            local clean_nick = cleanText(player.nick):lower()
+            if filter_text == "" or clean_nick:find(filter_text, 1, true) then
+                displayed = displayed + 1
+
+                imgui.Columns(3, "##unitplayer_row_" .. displayed, false)
+                imgui.SetColumnWidth(0, 280 * settings.general.custom_dpi)
+                imgui.SetColumnWidth(1, 180 * settings.general.custom_dpi)
+                imgui.SetColumnWidth(2, 260 * settings.general.custom_dpi)
+
+                -- Очищаем ник для отображения
+                local display_nick = cleanText(player.nick)
+                local display_rank = cleanText(player.rank)
+                local display_location = cleanText(player.location)
+
+                if display_location == "" then
+                    display_location = "Неизвестно"
+                end
+
+                if imgui.Selectable(u8(display_nick), false,
+                                    imgui.SelectableFlags.SpanAllColumns,
+                                    imgui.ImVec2(0, 25 *
+                                                     settings.general.custom_dpi)) then
+                    sampAddChatMessage(string.format(
+                                           "Выбран игрок: %s [%s]",
+                                           display_nick, display_rank), -1)
+                end
+                imgui.NextColumn()
+                imgui.Text(u8(display_rank))
+                imgui.NextColumn()
+                imgui.Text(u8(display_location))
+                imgui.NextColumn()
+
+                imgui.Columns(1)
+                imgui.Separator()
+            end
+        end
+
+        if displayed == 0 then
+            imgui.SetCursorPosY(imgui.GetCursorPosY() + 80)
+            local disabled_color = imgui.GetStyle().Colors[imgui.Col
+                                       .TextDisabled]
+            imgui.TextColored(disabled_color, u8("Нет данных"))
+        end
+
+        imgui.EndChild()
+    end
+
+    -- Нижняя панель
+    imgui.Separator()
+
+    -- Кнопка закрытия
+    local btn_width = 100 * settings.general.custom_dpi
+    local start_x = (imgui.GetWindowWidth() - btn_width) / 2
+    imgui.SetCursorPosX(start_x)
+
+    if imgui.Button(u8("ЗАКРЫТЬ"),
+                    imgui.ImVec2(btn_width, 30 * settings.general.custom_dpi)) then
+        MODULE.UnitPlayerList.Window[0] = false
+    end
+
+    imgui.End()
+end)
+
 imgui.OnFrame(function() return MODULE.JailInfo.window[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
@@ -16115,21 +16435,19 @@ function parseDivisionDialog(text)
     -- Разбиваем на строки
     local lines = {}
     for line in clean_text:gmatch("[^\r\n]+") do
-        -- Убираем пробелы по краям
         line = line:match("^%s*(.-)%s*$") or ""
         if line ~= "" and
             not line:find("Название подразделения") and
             not line:find("УПРАВЛЕНИЕ ПОДРАЗДЕЛЕНИЕМ") and
             not line:find("%[ПРИНЯТЬ%]") and
             not line:find("%[ОТМЕНА%]") and
-            not line:find("Подразделение") and -- ДОБАВЛЕНО: фильтруем заголовок
-            not line:find("Лидер") and -- ДОБАВЛЕНО: фильтруем заголовок  
-        not line:find("Задание") then -- ДОБАВЛЕНО: фильтруем заголовок
+            not line:find("Подразделение") and
+            not line:find("Лидер") and
+            not line:find("Задание") then
             table.insert(lines, line)
         end
     end
 
-    -- Обрабатываем строки
     for _, line in ipairs(lines) do
         -- Разбиваем строку по табуляции
         local parts = {}
@@ -16138,51 +16456,62 @@ function parseDivisionDialog(text)
             table.insert(parts, part)
         end
 
-        if #parts >= 3 then
-            local name = parts[1] or ""
-            local leader_full = parts[2] or ""
-            local task_full = parts[3] or ""
-            local your_div = ""
+        local name = (parts[1] or ""):gsub("%s+", " ")
+        local leader_info = (parts[2] or ""):gsub("%s+", " ")
+        local task_full = (parts[3] or ""):gsub("%s+", " ")
+        local your_div = (parts[4] or ""):gsub("%s+", " ")
 
-            -- Проверяем 4-ю часть (Ваше подразделение)
-            if #parts >= 4 and parts[4] ~= "" then
-                your_div = parts[4]
-            end
+        -- Проверяем, есть ли [Вы тут] в задании
+        if task_full:find("%[Вы тут%]") then
+            your_div = "Вы тут"
+            task_full = task_full:gsub("%s*%[Вы тут%]%s*", "")
+        end
 
-            -- Проверяем, есть ли [Вы тут] в задании
-            if task_full:find("%[Вы тут%]") then
-                your_div = "Вы тут"
-                task_full = task_full:gsub("%s*%[Вы тут%]%s*", "")
-            end
-
-            -- Извлекаем статус из лидера
-            local leader = leader_full
-            local leader_status = ""
-
-            local status_start, status_end = leader_full:find("%[([^%]]+)%]")
-            if status_start then
-                leader_status =
-                    leader_full:sub(status_start + 1, status_end - 1)
-                leader = leader_full:sub(1, status_start - 1):match(
-                             "^%s*(.-)%s*$") or leader_full
-            end
-
-            -- Пропускаем пустые имена и заголовки
-            if name ~= "" and name ~= " " and not name:find("Название") and
-                not name:find("Подразделение") then
-
-                if leader == "" then leader = " " end
-                if task_full == "" then task_full = " " end
-
-                table.insert(divisions, {
-                    name = name,
-                    leader = leader,
-                    leader_status = leader_status,
-                    task = task_full,
-                    your_division = your_div
-                })
+        --- ИЗВЛЕКАЕМ ЛИДЕРА И ЕГО СТАТУС/ID ---
+        local leader = ""
+        local leader_status = ""
+        
+        -- Ищем все квадратные скобки в строке лидера
+        -- Формат может быть: "Имя Фамилия [ON]", "Имя Фамилия [ID:123]", "[OFF] Имя Фамилия" и т.д.
+        
+        -- Сначала ищем скобки в конце строки
+        local bracket_start, bracket_end = leader_info:find("%[([^%]]+)%]%s*$")
+        if bracket_start then
+            leader_status = leader_info:sub(bracket_start + 1, bracket_end - 1)
+            leader = leader_info:sub(1, bracket_start - 1):match("^%s*(.-)%s*$") or ""
+        else
+            -- Ищем скобки в начале строки
+            bracket_start, bracket_end = leader_info:find("^%s*%[([^%]]+)%]")
+            if bracket_start then
+                leader_status = leader_info:sub(bracket_start + 1, bracket_end - 1)
+                leader = leader_info:sub(bracket_end + 1):match("^%s*(.-)%s*$") or ""
+            else
+                -- Нет скобок - всё это имя
+                leader = leader_info
             end
         end
+        
+        -- Если имя лидера пустое, но есть статус/ID, показываем статус как имя
+        if leader == "" and leader_status ~= "" then
+            leader = "[" .. leader_status .. "]"
+        end
+
+        -- Если название "Не установлено", но есть лидер - оставляем
+        if name == "" or name == " " then
+            name = "Не установлено"
+        end
+        
+        if task_full == "" or task_full == " " then
+            task_full = "Не установлено"
+        end
+
+        table.insert(divisions, {
+            name = name,
+            leader = leader,
+            leader_status = leader_status,
+            task = task_full,
+            your_division = your_div
+        })
     end
 
     return divisions
