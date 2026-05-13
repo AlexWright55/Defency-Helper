@@ -163,8 +163,68 @@ local default_settings = {
         taser = {x = sizeX / 4.2, y = sizeY / 2.1}
     },
     time_hud = false,
-    display_map_distance = {user = false, server = false}
+    display_map_distance = {user = false, server = false},
+    systems_settings = {
+        -- Модуль "Новые окна" (настройки отображения окон)
+        new_windows = {
+            enabled = {
+                dialog_unit = true -- Новое окно на команду /unit
+            }
+        }
+    }
 }
+
+-- Функция сохранения настроек модулей
+-- Функция сохранения настроек модулей
+function save_systems_settings()
+    if not settings.systems_settings then
+        settings.systems_settings = {
+            new_windows = {enabled = {dialog_unit = true}}
+        }
+    else
+        -- рекурсивное обновление
+        for module_name, module_data in pairs(settings.systems_settings) do
+            if not settings.systems_settings[module_name] then
+                settings.systems_settings[module_name] = module_data
+            else
+                for setting_name, value in pairs(module_data.enabled) do
+                    if settings.systems_settings[module_name].enabled[setting_name] ==
+                        nil then
+                        settings.systems_settings[module_name].enabled[setting_name] =
+                            value
+                    end
+                end
+            end
+        end
+    end
+    save_settings()
+end
+
+-- Загрузка настроек модулей
+function load_systems_settings()
+    if not settings.systems_settings then
+        settings.systems_settings = {
+            new_windows = {enabled = {dialog_unit = true}}
+        }
+    else
+        -- синхронизация с дефолтными настройками
+        for module_name, module_data in pairs(settings.systems_settings) do
+            if not settings.systems_settings[module_name] then
+                settings.systems_settings[module_name] = module_data
+            else
+                for setting_name, default_value in pairs(module_data.enabled) do
+                    if settings.systems_settings[module_name].enabled[setting_name] ==
+                        nil then
+                        settings.systems_settings[module_name].enabled[setting_name] =
+                            default_value
+                    end
+                end
+            end
+        end
+    end
+    save_systems_settings()
+end
+
 function encode_table(array)
     if dkok then
         local ok, encoded = pcall(dkjson.encode, array, {indent = true})
@@ -173,6 +233,7 @@ function encode_table(array)
     local ok, encoded = pcall(encodeJson, array)
     if ok then return encoded end
 end
+
 function save_settings()
     local file, errstr = io.open(config_dir .. "/Settings.json", 'w')
     if file then
@@ -245,6 +306,7 @@ end
 
 function isMode(mode_type) return settings.general.fraction_mode == mode_type end
 load_settings()
+load_systems_settings()
 
 -- =============================================
 -- DEBUG SYSTEM FOR NOTEPAD (TXT with UTF-8 in Debug folder)
@@ -1727,6 +1789,34 @@ local MODULE = {
         auto_update = imgui.new.bool(false), -- Чекбокс автообновления
         update_timer = 0, -- Таймер для обновления
         update_interval = 5 -- Интервал в секундах
+    },
+    UnitManagementDialog = {
+        Window = imgui.new.bool(),
+        selected_division = nil,
+        selected_name = "",
+        selected_leader = "",
+        selected_task = "",
+        edit_name = imgui.new.char[256](),
+        edit_task = imgui.new.char[256](),
+        new_leader_id = imgui.new.char[32](),
+        pending_action = nil,
+        action_stage = 0,
+        temp_data = {},
+        show_rename_popup = false, -- НОВОЕ: флаг для открытия popup переименования
+        show_task_popup = false -- НОВОЕ: флаг для открытия popup изменения задания
+    },
+    JailInfo = {
+        window = imgui.new.bool(),
+        waiting = false,
+        target_id = 0,
+        target_name = "",
+        data = {}
+    },
+    SystemsManager = {
+        Window = imgui.new.bool(false), -- основное окно (вкладка)
+        current_module = nil, -- текущий открытый модуль
+        current_module_name = "",
+        temp_settings = {} -- временные настройки для модального окна
     }
 }
 MODULE.Post.ImItemsCode = imgui.new['const char*'][#MODULE.Post.codes](
@@ -4436,14 +4526,29 @@ function initialize_commands()
             MODULE.UstavView.Window[0] = not MODULE.UstavView.Window[0]
         end)
 
-        sampRegisterChatCommand("platoon", function()
-            MODULE.UnitWindow.Window[0] = not MODULE.UnitWindow.Window[0]
-        end)
+        sampRegisterChatCommand("unit" or "platoon", function()
+            -- Проверяем, включено ли новое окно
+            local use_new_window = settings.systems_settings and
+                                       settings.systems_settings.new_windows and
+                                       settings.systems_settings.new_windows
+                                           .enabled and
+                                       settings.systems_settings.new_windows
+                                           .enabled.dialog_unit
 
-        sampRegisterChatCommand("unit", function()
-            MODULE.UnitWindow.Window[0] = not MODULE.UnitWindow.Window[0]
-            if MODULE.UnitWindow.Window[0] then
-                sampSendChat("/unit") -- Автоматически запрашиваем данные при открытии
+            if use_new_window then
+                -- Используем кастомное окно
+                MODULE.UnitWindow.Window[0] = not MODULE.UnitWindow.Window[0]
+                if MODULE.UnitWindow.Window[0] then
+                    sampSendChat("/unit")
+                end
+            else
+                -- Используем стандартное окно - просто отправляем команду
+                -- Не открываем кастомное окно, сервер покажет стандартный диалог
+                sampSendChat("/unit")
+                -- Если окно было открыто - закрываем его
+                if MODULE.UnitWindow.Window[0] then
+                    MODULE.UnitWindow.Window[0] = false
+                end
             end
         end)
 
@@ -6428,6 +6533,7 @@ function count_lines_in_text(text, max_length)
     if current_line ~= "" then table.insert(lines, current_line) end
     return tonumber(#lines)
 end
+
 function downloadFileFromUrlToPath(url, path)
     print('Начинаю скачивание файла в ' .. path)
     local function on_finish_download()
@@ -6592,6 +6698,7 @@ function check_update()
         'https://alexwright55.github.io/Defency-Helper/Defency%20Helper/Update.json',
         config_dir .. "/Update.json")
 end
+
 function check_resourses()
     if not doesDirectoryExist(config_dir .. '/Resourse') then
         createDirectory(config_dir .. '/Resourse')
@@ -6609,16 +6716,18 @@ function check_resourses()
             'https://alexwright55.github.io/Defency-Helper/Defency%20Helper/Resourse/notify.mp3',
             config_dir .. "/Resourse/notify.mp3")
     end
+
     if not doesFileExist(modules.arz_veh.path) then
         print(
             'Подгружаю список всех кастомных т/с для определенения моделей...')
         download_file = 'arz_veh'
         downloadFileFromUrlToPath(
-            'httpshttps://alexwright55.github.io/Defency-Helper/SmartVEH/Vehicles' ..
+            'https://alexwright55.github.io/Defency-Helper/SmartVEH/Vehicles' ..
                 ((tonumber(getServerNumber()) > 300) and 'Rodina.json' or
                     '.json'), modules.arz_veh.path)
     end
 end
+
 function import_fraction_data(mode)
     add_unique_cmd(modules.commands.data.commands.my,
                    get_fraction_cmds(mode, false))
@@ -7378,6 +7487,23 @@ function sampev.onSendCommand(text)
             end
         end
     end
+
+    -- Перехватываем /getjail ID
+    local id = text:match("^/getjail (%d+)")
+    if id then
+        local playerId = tonumber(id)
+        if sampIsPlayerConnected(playerId) then
+            -- Отправляем команду на сервер для получения данных
+            -- но блокируем стандартный диалог
+            sampSendChat("/getjail " .. playerId)
+            -- Включаем ожидание данных
+            MODULE.JailInfo.waiting = true
+            MODULE.JailInfo.target_id = playerId
+            MODULE.JailInfo.target_name = sampGetPlayerNickname(playerId)
+        end
+        return false -- Блокируем стандартную отправку (если нужно)
+    end
+
     return {text}
 end
 
@@ -7389,14 +7515,242 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                   dialogid, style)
     end
 
-    if dialogid == 8772 then
-        MODULE.UnitWindow.text = text
-        MODULE.UnitWindow.parsed_data = parseDivisionDialog(text)
-        MODULE.UnitWindow.Window[0] = true
+    -- Проверяем, ждём ли мы данные о наказаниях
+    if MODULE.JailInfo.waiting and title and title:find("ИНФОРМАЦИЯ") then
+        MODULE.JailInfo.data = parseJailInfo(text)
+        MODULE.JailInfo.window[0] = true
+        MODULE.JailInfo.waiting = false
         sampSendDialogResponse(dialogid, 0, 0, 0)
         return false
     end
 
+    -- ============================================================
+    -- Обработка диалога /unit - СПИСОК ОТДЕЛОВ (dialogid 8772)
+    -- ============================================================
+    if dialogid == 8772 then
+        local use_new_window = settings.systems_settings and
+                                   settings.systems_settings.new_windows and
+                                   settings.systems_settings.new_windows.enabled and
+                                   settings.systems_settings.new_windows.enabled
+                                       .dialog_unit
+
+        -- Если есть ожидающее действие - ищем отдел и выбираем его
+        if MODULE.UnitManagementDialog.pending_action and
+            MODULE.UnitManagementDialog.action_stage == 0 then
+
+            MODULE.UnitWindow.text = text
+            MODULE.UnitWindow.parsed_data = parseDivisionDialog(text)
+            local divisions = MODULE.UnitWindow.parsed_data
+
+            local target_name = MODULE.UnitManagementDialog.selected_name
+            local clean_target = target_name:gsub("{[%x%a]+}", ""):gsub("%s+",
+                                                                        " ")
+                                     :gsub("^%s+", ""):gsub("%s+$", ""):lower()
+            local division_index = -1
+
+            for i, div in ipairs(divisions) do
+                local clean_div = (div.name or ""):gsub("{[%x%a]+}", ""):gsub(
+                                      "%s+", " "):gsub("^%s+", "")
+                                      :gsub("%s+$", ""):lower()
+                if clean_div == clean_target then
+                    division_index = i;
+                    break
+                end
+            end
+
+            if division_index == -1 then
+                for i, div in ipairs(divisions) do
+                    local clean_div = (div.name or ""):gsub("{[%x%a]+}", "")
+                                          :gsub("%s+", " "):gsub("^%s+", "")
+                                          :gsub("%s+$", ""):lower()
+                    if clean_div:find(clean_target, 1, true) or
+                        clean_target:find(clean_div, 1, true) then
+                        division_index = i;
+                        break
+                    end
+                end
+            end
+
+            if division_index > 0 then
+                sampSendDialogResponse(dialogid, 1, division_index - 1, "")
+                MODULE.UnitManagementDialog.action_stage = 1
+                return false
+            else
+                sampSendDialogResponse(dialogid, 0, 0, 0)
+                sampAddChatMessage(script_tag ..
+                                       " {ffffff}Ошибка: отдел не найден!",
+                                   message_color)
+                clearPendingAction()
+                return false
+            end
+        end
+
+        -- Обычное отображение (без ожидающих действий)
+        if not MODULE.UnitManagementDialog.pending_action and use_new_window then
+            MODULE.UnitWindow.text = text
+            MODULE.UnitWindow.parsed_data = parseDivisionDialog(text)
+            MODULE.UnitWindow.Window[0] = true
+            sampSendDialogResponse(dialogid, 0, 0, 0)
+            return false
+        end
+    end
+
+    -- ============================================================
+    -- Обработка диалога ВЫБОРА ДЕЙСТВИЯ (dialogid 8773)
+    -- ============================================================
+    if dialogid == 8773 and MODULE.UnitManagementDialog.pending_action and
+        MODULE.UnitManagementDialog.action_stage == 1 then
+
+        local action = MODULE.UnitManagementDialog.pending_action
+        local action_map = {
+            ["change_leader"] = 0,
+            ["rename_division"] = 1,
+            ["change_task"] = 2,
+            ["assign_player"] = 3,
+            ["remove_player"] = 4,
+            ["show_members"] = 5
+        }
+
+        local action_index = action_map[action]
+        if action_index ~= nil then
+            sampSendDialogResponse(dialogid, 1, action_index, "")
+            MODULE.UnitManagementDialog.action_stage = 2
+        else
+            sampSendDialogResponse(dialogid, 0, 0, 0)
+            clearPendingAction()
+        end
+        return false
+    end
+
+    -- ============================================================
+    -- Обработка диалогов STAGE 2 (ввод данных после выбора действия)
+    -- Работает для ЛЮБОГО dialogid
+    -- ============================================================
+    if MODULE.UnitManagementDialog.pending_action and
+        MODULE.UnitManagementDialog.action_stage == 2 then
+
+        local action = MODULE.UnitManagementDialog.pending_action
+        local clean_text = text:gsub("{[%x%a]+}", "")
+
+        -- Диалог ввода (style 1 или 3)
+        if style == 1 or style == 3 then
+
+            if action == "change_leader" then
+                local player_id = get_closest_player_id()
+                if player_id then
+                    sampSendDialogResponse(dialogid, 1, 0, tostring(player_id))
+                else
+                    sampSendDialogResponse(dialogid, 0, 0, 0)
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Нет игроков рядом для назначения лидером!",
+                                       message_color)
+                end
+                clearPendingAction()
+                return false
+
+            elseif action == "rename_division" then
+                -- Проверяем, есть ли уже сохранённое название
+                local new_name = MODULE.UnitManagementDialog.temp_data.new_name
+                if new_name and new_name ~= "" then
+                    -- Вводим сохранённое название
+                    sampSendDialogResponse(dialogid, 1, 0, new_name)
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Название отдела изменено на: " ..
+                                           new_name, message_color)
+                    clearPendingAction()
+                    -- Обновляем список отделов
+                    lua_thread.create(function()
+                        wait(500)
+                        sampSendChat("/unit")
+                    end)
+                else
+                    -- Первый раз - открываем ImGui для ввода
+                    sampSendDialogResponse(dialogid, 0, 0, 0)
+                    MODULE.UnitManagementDialog.show_rename_popup = true
+                    MODULE.UnitManagementDialog.Window[0] = true
+                    clearPendingAction()
+                end
+                return false
+
+            elseif action == "change_task" then
+                -- Проверяем, есть ли уже сохранённое задание
+                local new_task = MODULE.UnitManagementDialog.temp_data.new_task
+                if new_task and new_task ~= "" then
+                    -- Вводим сохранённое задание
+                    sampSendDialogResponse(dialogid, 1, 0, new_task)
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Задание отдела изменено на: " ..
+                                           new_task, message_color)
+                    clearPendingAction()
+                    -- Обновляем список отделов
+                    lua_thread.create(function()
+                        wait(500)
+                        sampSendChat("/unit")
+                    end)
+                else
+                    -- Первый раз - открываем ImGui для ввода
+                    sampSendDialogResponse(dialogid, 0, 0, 0)
+                    MODULE.UnitManagementDialog.show_task_popup = true
+                    MODULE.UnitManagementDialog.Window[0] = true
+                    clearPendingAction()
+                end
+                return false
+
+            elseif action == "assign_player" then
+                local player_id = get_closest_player_id()
+                if player_id then
+                    sampSendDialogResponse(dialogid, 1, 0, tostring(player_id))
+                else
+                    sampSendDialogResponse(dialogid, 0, 0, 0)
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Нет игроков рядом для назначения!",
+                                       message_color)
+                end
+                clearPendingAction()
+                return false
+            end
+
+            -- Диалог списка (style 2)
+        elseif style == 2 then
+
+            if action == "remove_player" then
+                local lines = {}
+                for line in clean_text:gmatch("[^\r\n]+") do
+                    line = line:gsub("^%s+", ""):gsub("%s+$", "")
+                    if line ~= "" and not line:find("ВЫБЕРИТЕ") and
+                        not line:find("ОТМЕНА") then
+                        table.insert(lines, line)
+                    end
+                end
+                if #lines > 0 then
+                    sampSendDialogResponse(dialogid, 1, 0, "")
+                else
+                    sampSendDialogResponse(dialogid, 0, 0, 0)
+                end
+                clearPendingAction()
+                return false
+            end
+
+            -- Информационный диалог (style 0)
+        elseif style == 0 then
+
+            if action == "show_members" then
+                MODULE.UnitWindow.text = text
+                MODULE.UnitWindow.parsed_data = parseDivisionDialog(text)
+                MODULE.UnitWindow.Window[0] = true
+                sampSendDialogResponse(dialogid, 0, 0, 0)
+                clearPendingAction()
+                return false
+            end
+        end
+
+        -- Если не подошло - сбрасываем
+        sampSendDialogResponse(dialogid, 0, 0, 0)
+        clearPendingAction()
+        return false
+    end
+
+    -- Обработка /stats
     if check_stats and (title:find('Основная статистика') or
         title:find('Статистика игрока')) then
         if text:find("Имя") then
@@ -7409,19 +7763,12 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                                                     TranslateNick(
                                                         settings.player_info
                                                             .nick)
-            sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Ваше имя и фамилия обнаружены: ' ..
-                                   settings.player_info.name_surname,
-                               message_color)
         end
         if text:find("Пол:") then
             settings.player_info.sex = text:match(
                                            "{FFFFFF}Пол: {......}%[(.-)]") or
                                            text:match(
                                                "{ffffff}Пол:%s+{......}([^\n\r]+)")
-            sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Ваш пол обнаружен: ' ..
-                                   settings.player_info.sex, message_color)
         end
         if text:find("Организация:") then
             settings.player_info.fraction = text:match(
@@ -7439,7 +7786,6 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 ['Армия SF'] = {'СФа', 'army'},
                 ['Армия ЛС'] = {'ЛСа', 'army'},
                 ['Армия LS'] = {'ЛСа', 'army'},
-                -- Rodina
                 ['Армия'] = {'ВС', 'army'},
                 ['Тюрьма Строгого Режима'] = {
                     'ФСИН', 'prison'
@@ -7448,17 +7794,8 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
             local data = fraction_data[settings.player_info.fraction]
             local old_fraction_mode = settings.general.fraction_mode
             if data then
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Ваша организация обнаружена, это: ' ..
-                                       settings.player_info.fraction,
-                                   message_color)
                 settings.player_info.fraction_tag = data[1]
                 settings.general.fraction_mode = data[2]
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Вашей организации присвоен тег ' ..
-                                       settings.player_info.fraction_tag ..
-                                       ". Но вы можете изменить его.",
-                                   message_color)
                 if text:find("Должность:") then
                     local rank, rank_number = text:match(
                                                   "{FFFFFF}Должность: {......}(.+)%((%d+)%)(.+)Уровень розыска")
@@ -7469,13 +7806,6 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                     settings.player_info.fraction_rank = rank
                     settings.player_info.fraction_rank_number = tonumber(
                                                                     rank_number)
-                    sampAddChatMessage(script_tag ..
-                                           ' {ffffff}Ваша должность обнаружена, это: ' ..
-                                           settings.player_info.fraction_rank ..
-                                           " (" ..
-                                           settings.player_info
-                                               .fraction_rank_number .. ")",
-                                       message_color)
                     if settings.player_info.fraction_rank_number >= 9 then
                         settings.general.auto_uninvite = true
                     end
@@ -7485,21 +7815,9 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 settings.player_info.fraction_tag = "ЖДЛС"
                 settings.player_info.fraction_rank = "Бомж"
                 settings.player_info.fraction_rank_number = 1
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Не удалось получить вашу организацию и должность!',
-                                   message_color)
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Присвоил вам режим без организации (ЖДЛС - Бомж - 1).',
-                                   message_color)
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Если вы действительно состоите в организации - перенастройте хелпер вручную.',
-                                   message_color)
             end
             if old_fraction_mode ~= '' and old_fraction_mode ~= 'none' and
                 old_fraction_mode ~= settings.general.fraction_mode then
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Вы теперь в другой фракции, поэтому удаляю команды ' ..
-                                       old_fraction_mode:rupper(), message_color)
                 delete_default_fraction_cmds(modules.commands.data.commands.my,
                                              get_fraction_cmds(
                                                  old_fraction_mode, false))
@@ -7511,11 +7829,10 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         end
         save_settings()
         sampSendDialogResponse(dialogid, 0, 0, 0)
-        reload_script = true
-        thisScript():reload()
         return false
     end
 
+    -- Обработка /members
     if ((MODULE.Members.info.check) and
         (title:find('(.+)%(В сети: (%d+)%)') or
             title:find(
@@ -7537,15 +7854,15 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 (not line:find('Ник') or not line:find('Имя')) then
                 local optional_info = ''
                 if line:find('{FFA500}%(Вы%)') then
-                    line = line:gsub("{FFA500}%(Вы%)", "")
+                    line = line:gsub("{FFA500}%(Вы%)", "");
                     optional_info = '(Вы)'
                 end
                 if line:find(' %/ В деморгане') then
-                    line = line:gsub(" %/ В деморгане", "")
+                    line = line:gsub(" %/ В деморгане", "");
                     optional_info = optional_info .. ' (JAIL)'
                 end
                 if line:find(' %/ MUTED') then
-                    line = line:gsub(" %/ MUTED", "")
+                    line = line:gsub(" %/ MUTED", "");
                     optional_info = optional_info .. ' (MUTE)'
                 end
                 if optional_info == '' then optional_info = '-' end
@@ -7553,13 +7870,9 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                     local color, nickname, id, rank, rank_number, color2,
                           rank_time, warns, afk = string.match(line,
                                                                "{(%x%x%x%x%x%x)}([%w_]+)%((%d+)%)%s*([^%(]+)%((%d+)%)%s*{(%x%x%x%x%x%x)}%(([^%)]+)%)%s*{FFFFFF}(%d+)%s*%[%d+%]%s*/%s*(%d+)%s*%d+ шт")
-                    if color ~= nil and nickname ~= nil and id ~= nil and rank ~=
-                        nil and rank_number ~= nil and warns ~= nil and afk ~=
-                        nil then
-                        local working = false
-                        if color:find('90EE90') then
-                            working = true
-                        end
+                    if color and nickname and id and rank and rank_number and
+                        warns and afk then
+                        local working = color:find('90EE90') ~= nil
                         if rank_time then
                             rank_number = rank_number .. ') (' .. rank_time
                         end
@@ -7578,13 +7891,9 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                     local color, nickname, id, rank, rank_number, rank_time,
                           warns, afk = string.match(line,
                                                     "{(%x%x%x%x%x%x)}%s*([^%(]+)%((%d+)%)%s*([^%(]+)%((%d+)%)%s*([^{}]+){FFFFFF}%s*(%d+)%s*%[%d+%]%s*/%s*(%d+)%s*%d+ шт")
-                    if color ~= nil and nickname ~= nil and id ~= nil and rank ~=
-                        nil and rank_number ~= nil and warns ~= nil and afk ~=
-                        nil then
-                        local working = false
-                        if color:find('90EE90') then
-                            working = true
-                        end
+                    if color and nickname and id and rank and rank_number and
+                        warns and afk then
+                        local working = color:find('90EE90') ~= nil
                         table.insert(MODULE.Members.new, {
                             nick = nickname,
                             id = id,
@@ -7597,7 +7906,6 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                         })
                     end
                 end
-
                 if not rank or not nickname then
                     local nickname, id, rank, rank_number, warns = line:match(
                                                                        "(.+)%((%d+)%)%s+(.+)%((%d+)%).+(%d) / 3")
@@ -7616,41 +7924,27 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 end
             end
             if line:match('Следующая страница') then
-                next_page = true
+                next_page = true;
                 next_page_i = count - 2
             end
         end
         if next_page then
             sampSendDialogResponse(dialogid, 1, next_page_i, 0)
-            next_page = false
-            next_pagei = 0
         elseif #MODULE.Members.new ~= 0 then
             sampSendDialogResponse(dialogid, 0, 0, 0)
             MODULE.Members.all = MODULE.Members.new
             MODULE.Members.info.check = false
-            if not settings.general.auto_update_members then
-                sampAddChatMessage(script_tag ..
-                                       ' {ffffff}Вы можете включить авто-обновление списка /mb /dh - Функции ' ..
-                                       settings.player_info.fraction_tag .. '!',
-                                   message_color)
-            end
             MODULE.Members.Window[0] = true
         else
             sampSendDialogResponse(dialogid, 0, 0, 0)
-            sampAddChatMessage(script_tag ..
-                                   '{ffffff} Список сотрудников пуст!',
-                               message_color)
             MODULE.Members.info.check = false
         end
         return false
     end
 
-    -- ========================================================
-    --  БЛОК ДЛЯ ВЗВОДА (доступен для рангов 5+)
-    -- ========================================================
+    -- БЛОК ДЛЯ ВЗВОДА (доступен для рангов 5+)
     if settings.player_info.fraction_rank_number >= 5 and
         MODULE.ManageTools.platoon.check then
-        -- 1. Диалог выбора взвода
         if title:find('Управление взводом') then
             local lines = {}
             for line in text:gmatch('[^\r\n]+') do
@@ -7661,17 +7955,15 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 local clean_line = line:gsub("{[%x%a]+}", ""):gsub("%s+", " ")
                                        :gsub("^%s+", ""):gsub("%s+$", "")
                 if clean_line:find("%[Вы тут%]") then
-                    selected_index = i - 2
+                    selected_index = i - 2;
                     break
                 end
             end
             if selected_index >= 0 then
-                sampSendDialogResponse(dialogid, 1, selected_index, "")
+                sampSendDialogResponse(dialogid, 1, selected_index, "");
                 return false
             end
         end
-
-        -- 2. Диалог с пунктом "Назначить взвод игроку"
         if text:find('Назначить взвод игроку') then
             local lines = {}
             for line in text:gmatch('[^\r\n]+') do
@@ -7682,18 +7974,15 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 local clean_line = line:gsub("{[%x%a]+}", ""):gsub("%s+", " ")
                                        :gsub("^%s+", ""):gsub("%s+$", "")
                 if clean_line:find("Назначить взвод игроку") then
-                    selected_index = i - 1
+                    selected_index = i - 1;
                     break
                 end
             end
             if selected_index >= 0 then
-                -- Пробуем нажать "Выдать" (левая кнопка)
-                sampSendDialogResponse(dialogid, 1, selected_index, "")
+                sampSendDialogResponse(dialogid, 1, selected_index, "");
                 return false
             end
         end
-
-        -- 3. Диалог ввода ID игрока (возможно, появляется после)
         if text:find('Введите') and text:find('ID') then
             sampSendDialogResponse(dialogid, 1, 0,
                                    MODULE.ManageTools.platoon.player_id)
@@ -7702,13 +7991,11 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         end
     end
 
-    -- ========================================================
-    --  ЛИДЕРСКИЕ ФУНКЦИИ (9/10)
-    -- ========================================================
+    -- ЛИДЕРСКИЕ ФУНКЦИИ (9/10)
     if settings.player_info.fraction_rank_number >= 9 then
         if title:find('Выберите ранг для (.+)') and
-            text:find('вакансий') then -- invite
-            sampSendDialogResponse(dialogid, 1, 0, 0)
+            text:find('вакансий') then
+            sampSendDialogResponse(dialogid, 1, 0, 0);
             return false
         end
         if MODULE.LeadTools.spawncar and title:find('$') and
@@ -7716,24 +8003,24 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
             local count = 0
             for line in text:gmatch('[^\r\n]+') do
                 if line:find('Спавн транспорта') then
-                    sampSendDialogResponse(dialogid, 1, count, 0)
-                    MODULE.LeadTools.spawncar = false
+                    sampSendDialogResponse(dialogid, 1, count, 0);
+                    MODULE.LeadTools.spawncar = false;
                     return false
                 else
                     count = count + 1
                 end
             end
         end
-        if (MODULE.LeadTools.cleaner.uninvite) then
+        if MODULE.LeadTools.cleaner.uninvite then
             if title:find('$') and
                 text:find(
                     'Управление членами организации') then
-                sampSendDialogResponse(dialogid, 1, 1, 0)
+                sampSendDialogResponse(dialogid, 1, 1, 0);
                 return false
             end
             if text:find('Игроки онлайн') and
                 text:find("Игроки оффлайн") then
-                sampSendDialogResponse(dialogid, 1, 1, 0)
+                sampSendDialogResponse(dialogid, 1, 1, 0);
                 return false
             end
             if title:find('Увольнение %(оффлайн%)') then
@@ -7750,26 +8037,14 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                                 {nickname = nick, day = days})
                         end
                     elseif line:find('{B0E73A}Вперед') then
-                        sampSendDialogResponse(dialogid, 1, counter - 1, "")
+                        sampSendDialogResponse(dialogid, 1, counter - 1, "");
                         return false
                     end
                 end
                 if #MODULE.LeadTools.cleaner.players_to_kick > 0 then
-                    sampAddChatMessage(
-                        script_tag .. ' {ffffff} Найдено ' ..
-                            #MODULE.LeadTools.cleaner.players_to_kick ..
-                            ' игроков которые ' ..
-                            MODULE.LeadTools.cleaner.day_afk ..
-                            " дней не в сети!", message_color)
                     kick_players()
-                else
-                    sampAddChatMessage(script_tag ..
-                                           ' {ffffff} Нету игроков которые ' ..
-                                           MODULE.LeadTools.cleaner.day_afk ..
-                                           " дней не в сети!",
-                                       message_color)
                 end
-                sampSendDialogResponse(dialogid, 2, 0, 0)
+                sampSendDialogResponse(dialogid, 2, 0, 0);
                 return false
             end
             if MODULE.LeadTools.cleaner.uninvite and text:find(
@@ -7777,25 +8052,25 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                 sampSendDialogResponse(dialogid, 1, 0,
                                        'Неактив (' ..
                                            MODULE.LeadTools.cleaner.reason_day ..
-                                           ' дней не в игре)')
+                                           ' дней не в игре)');
                 return false
             end
         end
-        if (MODULE.LeadTools.sell_rank.checker) then
-            if (title:find('$') and text:find('Продать ранг')) then
+        if MODULE.LeadTools.sell_rank.checker then
+            if title:find('$') and text:find('Продать ранг') then
                 local count = 0
                 for line in text:gmatch('[^\r\n]+') do
-                    if (line:find('Продать ранг')) then
+                    if line:find('Продать ранг') then
                         sampSendDialogResponse(dialogid, 1, count, 0)
                     else
                         count = count + 1
                     end
                 end
-            elseif (title:find('Выбор игрока') and
-                text:find(MODULE.LeadTools.sell_rank.player_id)) then
+            elseif title:find('Выбор игрока') and
+                text:find(MODULE.LeadTools.sell_rank.player_id) then
                 local count = 0
                 for line in text:gmatch('[^\r\n]+') do
-                    if (line:find(MODULE.LeadTools.sell_rank.player_id)) then
+                    if line:find(MODULE.LeadTools.sell_rank.player_id) then
                         sampSendDialogResponse(dialogid, 1, count - 1, 0)
                     else
                         count = count + 1
@@ -7808,17 +8083,17 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
     end
 
     if title:find('Сущности рядом') then
-        sampSendDialogResponse(dialogid, 0, 2, 0)
+        sampSendDialogResponse(dialogid, 0, 2, 0);
         return false
     end
 
-    if (settings.general.auto_accept_docs) then
-        if (title:find('Активные предложения') and
+    if settings.general.auto_accept_docs then
+        if title:find('Активные предложения') and
             (text:find('посмотреть его паспорт') or
                 text:find('посмотреть его лицензии') or
-                text:find('посмотреть его мед(.+)карту'))) then
+                text:find('посмотреть его мед(.+)карту')) then
             if text:find('Когда') then
-                sampSendDialogResponse(dialogid, 1, 0, 0)
+                sampSendDialogResponse(dialogid, 1, 0, 0);
                 return false
             elseif text:find('Принять предложение') then
                 local doc_type = 'документ'
@@ -7833,22 +8108,22 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                     sampAddChatMessage(
                         '[Defency Helper | Ассистент] {ffffff}Запускаю отыгровку проверки документов игрока...',
                         message_color)
-                    MODULE.Binder.state.isActive = true
+                    MODULE.Binder.state.isActive = true;
                     wait(500)
                     sampSendChat('/me берёт ' .. doc_type ..
                                      ' и внимательно осматривает, затем возвращает обратно владельцу')
-                    wait(500)
-                    sampSendDialogResponse(dialogid, 1, 2, '')
+                    wait(500);
+                    sampSendDialogResponse(dialogid, 1, 2, '');
                     MODULE.Binder.state.isActive = false
                 end)
                 return false
             end
         end
-        if (title:find('Подтверждение действия') and
+        if title:find('Подтверждение действия') and
             (text:find('посмотреть его паспорт') or
                 text:find('посмотреть его лицензии') or
-                text:find('посмотреть его мед(.+)карту'))) then
-            sampSendDialogResponse(dialogid, 1, 2, '')
+                text:find('посмотреть его мед(.+)карту')) then
+            sampSendDialogResponse(dialogid, 1, 2, '');
             return false
         end
     end
@@ -7859,23 +8134,19 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
             for line in text:gmatch("[^\r\n]+") do
                 if line ~= "" then table.insert(lines, line) end
             end
-
-            local target = "Взять ящик с патронами"
             for i, line in ipairs(lines) do
-                if line:find(target, 1, true) then
-                    sampSendDialogResponse(dialogid, 1, i - 1, "")
+                if line:find("Взять ящик с патронами", 1,
+                             true) then
+                    sampSendDialogResponse(dialogid, 1, i - 1, "");
                     return false
                 end
             end
         end
-
         if dialogid == 15254 then
-            sampSendDialogResponse(dialogid, 1, 1, 0)
+            sampSendDialogResponse(dialogid, 1, 1, 0);
             return false
         end
     end
-
-    if isMode('prison') then end
 end
 
 function sampev.onCreate3DText(id, color, position, distance, testLOS,
@@ -11630,7 +11901,6 @@ function render_fractions_functions()
                                                  'Отключить' or
                                                  'Включить') .. '##' ..
                                                  name .. key)) then
-            -- Убрана проверка на VIP, всегда разрешаем
             tbl[key] = not tbl[key]
             save_settings()
         end
@@ -11640,6 +11910,7 @@ function render_fractions_functions()
         end
         imgui.Columns(1)
     end
+
     local function firs_render_assist_gui()
         imgui.Columns(3)
         imgui.CenterColumnText(u8("Название функции"))
@@ -11652,6 +11923,7 @@ function render_fractions_functions()
         imgui.SetColumnWidth(-1, 170 * settings.general.custom_dpi)
         imgui.NextColumn()
         imgui.Columns(1)
+
         render_assist_item("RP общение в чатах",
                            "Ваши сообщения в чат будут отправляться с заглавной буквы и точкой в конце.\nТак-же работает и в таких чатах как: /s /do /f /fb /r /rb /j /jb /fam /al",
                            settings.player_info, "rp_chat")
@@ -11687,7 +11959,6 @@ function render_fractions_functions()
                            "Отображать под миникартой расстояние до пользовательской метки",
                            settings.display_map_distance, "user")
         if not isMode('none') then
-            -- Убраны isVip
             render_assist_item("Обновление списка /mb",
                                "Автоматически обновляет список сотрудников в /mb каждые 3 секунды.",
                                settings.general, "auto_update_members")
@@ -11708,17 +11979,171 @@ function render_fractions_functions()
                 settings.general, "auto_uninvite")
         end
     end
+
+    -- ============================================
+    -- ОСНОВНОЙ БЛОК
+    -- ============================================
+
+    -- ДЛЯ АРМИИ (с подвкладками: Личный помощник "Ассистент", Модули, Устав)
     if isMode('army') then
-        if imgui.BeginChild('##army_assist',
-                            imgui.ImVec2(589 * settings.general.custom_dpi,
-                                         367 * settings.general.custom_dpi),
-                            true) then
-            firs_render_assist_gui()
-            imgui.Separator()
-            imgui.EndChild()
+        if imgui.BeginTabBar('ArmySubTabs') then
+
+            -- 1. Личный помощник "Ассистент"
+            if imgui.BeginTabItem(fa.ROBOT ..
+                                      u8 ' Личный помощник "Ассистент"') then
+                if imgui.BeginChild('##army_assist',
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        367 * settings.general.custom_dpi), true) then
+                    firs_render_assist_gui()
+                    imgui.Separator()
+                    imgui.EndChild()
+                end
+                imgui.EndTabItem()
+            end
+
+            -- 2. Модули
+            if imgui.BeginTabItem(fa.CUBES .. u8 ' Модули') then
+                if imgui.BeginChild('##army_systems_tab',
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        338 * settings.general.custom_dpi), true) then
+
+                    imgui.CenterText(fa.CUBES ..
+                                         u8(
+                                             " УПРАВЛЕНИЕ МОДУЛЯМИ ") ..
+                                         fa.CUBES)
+                    imgui.Separator()
+                    imgui.Dummy(imgui.ImVec2(0, 5 * settings.general.custom_dpi))
+
+                    local function render_module_row(icon, module_key, title,
+                                                     description)
+                        local start_pos = imgui.GetCursorPosY()
+                        imgui.Text(icon .. "  ")
+                        imgui.SameLine()
+                        local title_x = imgui.GetCursorPosX()
+                        imgui.TextColored(imgui.ImVec4(0.3, 0.8, 1.0, 1.0),
+                                          u8(title))
+                        imgui.SetCursorPosY(start_pos + 18 *
+                                                settings.general.custom_dpi)
+                        imgui.SetCursorPosX(title_x)
+                        imgui.TextDisabled(u8(description))
+                        local win_w = imgui.GetWindowWidth()
+                        local btn_w = 30 * settings.general.custom_dpi
+                        imgui.SetCursorPosX(
+                            win_w - btn_w - 10 * settings.general.custom_dpi)
+                        imgui.SetCursorPosY(start_pos + 3 *
+                                                settings.general.custom_dpi)
+                        if imgui.Button(fa.GEAR, imgui.ImVec2(btn_w, 22 *
+                                                                  settings.general
+                                                                      .custom_dpi)) then
+                            MODULE.SystemsManager.current_module = module_key
+                            MODULE.SystemsManager.current_module_name = title
+                            MODULE.SystemsManager.temp_settings = {}
+                            for k, v in pairs(
+                                            settings.systems_settings[module_key]
+                                                .enabled) do
+                                MODULE.SystemsManager.temp_settings[k] = v
+                            end
+                            imgui.OpenPopup(u8(
+                                                "Настройки модуля: ") ..
+                                                u8(title))
+                        end
+                        imgui.SetCursorPosY(start_pos + 35 *
+                                                settings.general.custom_dpi)
+                        imgui.Separator()
+                        imgui.Dummy(imgui.ImVec2(0, 5 *
+                                                     settings.general.custom_dpi))
+                    end
+
+                    render_module_row(fa.WINDOW_MAXIMIZE, "new_windows",
+                                      "Новые окна",
+                                      "Настройка отображения новых интерфейсов (Окно управления отделами)")
+
+                    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                           imgui.Cond.Always,
+                                           imgui.ImVec2(0.5, 0.5))
+                    imgui.SetNextWindowSize(imgui.ImVec2(450 *
+                                                             settings.general
+                                                                 .custom_dpi, 0),
+                                            imgui.Cond.Always)
+
+                    if imgui.BeginPopupModal(u8(
+                                                 "Настройки модуля: ") ..
+                                                 u8(
+                                                     MODULE.SystemsManager
+                                                         .current_module_name),
+                                             _, imgui.WindowFlags.NoCollapse +
+                                                 imgui.WindowFlags
+                                                     .AlwaysAutoResize) then
+                        change_dpi()
+                        local module_key = MODULE.SystemsManager.current_module
+                        local temp = MODULE.SystemsManager.temp_settings
+
+                        if module_key == "new_windows" then
+                            imgui.CenterText(
+                                fa.WINDOW_MAXIMIZE ..
+                                    u8(
+                                        " Настройка новых окон "))
+                            imgui.Separator()
+
+                            -- ИСПРАВЛЕНИЕ: создаём временную таблицу для чекбокса
+                            local check_value = imgui.new.bool(
+                                                    temp["dialog_unit"])
+                            if imgui.Checkbox(u8(
+                                                  "Управление отделами (новое окно /unit)"),
+                                              check_value) then
+                                temp["dialog_unit"] = check_value[0]
+                            end
+
+                            imgui.Separator()
+                            imgui.TextColored(
+                                imgui.ImVec4(0.75, 0.75, 0.75, 0.9), u8(
+                                    "Вкл. - показывать новое окно, Выкл. - использовать старое"))
+                        end
+
+                        imgui.Separator()
+                        local btn_width = (imgui.GetWindowWidth() - 30) / 2
+                        if imgui.Button(u8("Сбросить"),
+                                        imgui.ImVec2(btn_width, 0)) then
+                            for k, v in pairs(
+                                            systems_settings[module_key].enabled) do
+                                temp[k] = v
+                            end
+                        end
+                        imgui.SameLine()
+                        if imgui.Button(u8("Закрыть"),
+                                        imgui.ImVec2(btn_width, 0)) then
+                            for k, v in pairs(temp) do
+                                settings.systems_settings[module_key].enabled[k] =
+                                    v
+                            end
+                            save_settings()
+                            imgui.CloseCurrentPopup()
+                        end
+                        imgui.EndPopup()
+                    end
+                    imgui.EndChild()
+                end
+                imgui.EndTabItem()
+            end
+
+            -- 3. Устав
+            if imgui.BeginTabItem(fa.BOOK .. u8(' Устав')) then
+                renderUstavEditor()
+                imgui.EndTabItem()
+            end
+
+            imgui.EndTabBar()
         end
-    elseif isMode('prison') then
-        if imgui.BeginTabBar('FractinFunctions') then
+        return
+    end
+
+    -- ДЛЯ ТСР (с подвкладками: Личный помощник "Ассистент", Модули, Умный срок, Устав)
+    if isMode('prison') then
+        if imgui.BeginTabBar('PrisonSubTabs') then
+
+            -- 1. Личный помощник "Ассистент"
             if imgui.BeginTabItem(fa.ROBOT ..
                                       u8 ' Личный помощник "Ассистент"') then
                 if imgui.BeginChild('##assist',
@@ -11735,8 +12160,135 @@ function render_fractions_functions()
                 end
                 imgui.EndTabItem()
             end
-            if imgui.BeginTabItem(fa.STAR ..
-                                      u8 ' Система умного продления срока') then
+
+            -- 2. Модули
+            if imgui.BeginTabItem(fa.CUBES .. u8 ' Модули') then
+                if imgui.BeginChild('##prison_systems_tab',
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        338 * settings.general.custom_dpi), true) then
+
+                    imgui.CenterText(fa.CUBES ..
+                                         u8(
+                                             " УПРАВЛЕНИЕ МОДУЛЯМИ ") ..
+                                         fa.CUBES)
+                    imgui.Separator()
+                    imgui.Dummy(imgui.ImVec2(0, 5 * settings.general.custom_dpi))
+
+                    local function render_module_row(icon, module_key, title,
+                                                     description)
+                        local start_pos = imgui.GetCursorPosY()
+                        imgui.Text(icon .. "  ")
+                        imgui.SameLine()
+                        local title_x = imgui.GetCursorPosX()
+                        imgui.TextColored(imgui.ImVec4(0.3, 0.8, 1.0, 1.0),
+                                          u8(title))
+                        imgui.SetCursorPosY(start_pos + 18 *
+                                                settings.general.custom_dpi)
+                        imgui.SetCursorPosX(title_x)
+                        imgui.TextDisabled(u8(description))
+                        local win_w = imgui.GetWindowWidth()
+                        local btn_w = 30 * settings.general.custom_dpi
+                        imgui.SetCursorPosX(
+                            win_w - btn_w - 10 * settings.general.custom_dpi)
+                        imgui.SetCursorPosY(start_pos + 3 *
+                                                settings.general.custom_dpi)
+                        if imgui.Button(fa.GEAR, imgui.ImVec2(btn_w, 22 *
+                                                                  settings.general
+                                                                      .custom_dpi)) then
+                            MODULE.SystemsManager.current_module = module_key
+                            MODULE.SystemsManager.current_module_name = title
+                            MODULE.SystemsManager.temp_settings = {}
+                            for k, v in pairs(
+                                            settings.systems_settings[module_key]
+                                                .enabled) do
+                                MODULE.SystemsManager.temp_settings[k] = v
+                            end
+                            imgui.OpenPopup(u8(
+                                                "Настройки модуля: ") ..
+                                                u8(title))
+                        end
+                        imgui.SetCursorPosY(start_pos + 35 *
+                                                settings.general.custom_dpi)
+                        imgui.Separator()
+                        imgui.Dummy(imgui.ImVec2(0, 5 *
+                                                     settings.general.custom_dpi))
+                    end
+
+                    render_module_row(fa.WINDOW_MAXIMIZE, "new_windows",
+                                      "Новые окна",
+                                      "Настройка отображения новых интерфейсов (Окно управления отделами)")
+
+                    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                                           imgui.Cond.Always,
+                                           imgui.ImVec2(0.5, 0.5))
+                    imgui.SetNextWindowSize(imgui.ImVec2(450 *
+                                                             settings.general
+                                                                 .custom_dpi, 0),
+                                            imgui.Cond.Always)
+
+                    if imgui.BeginPopupModal(u8(
+                                                 "Настройки модуля: ") ..
+                                                 u8(
+                                                     MODULE.SystemsManager
+                                                         .current_module_name),
+                                             _, imgui.WindowFlags.NoCollapse +
+                                                 imgui.WindowFlags
+                                                     .AlwaysAutoResize) then
+                        change_dpi()
+                        local module_key = MODULE.SystemsManager.current_module
+                        local temp = MODULE.SystemsManager.temp_settings
+
+                        if module_key == "new_windows" then
+                            imgui.CenterText(
+                                fa.WINDOW_MAXIMIZE ..
+                                    u8(
+                                        " Настройка новых окон "))
+                            imgui.Separator()
+
+                            -- ИСПРАВЛЕНИЕ: создаём временную таблицу для чекбокса
+                            local check_value = imgui.new.bool(
+                                                    temp["dialog_unit"])
+                            if imgui.Checkbox(u8(
+                                                  "Управление отделами (новое окно /unit)"),
+                                              check_value) then
+                                temp["dialog_unit"] = check_value[0]
+                            end
+
+                            imgui.Separator()
+                            imgui.TextColored(
+                                imgui.ImVec4(0.75, 0.75, 0.75, 0.9), u8(
+                                    "Вкл. - показывать новое окно, Выкл. - использовать старое"))
+                        end
+
+                        imgui.Separator()
+                        local btn_width = (imgui.GetWindowWidth() - 30) / 2
+                        if imgui.Button(u8("Сбросить"),
+                                        imgui.ImVec2(btn_width, 0)) then
+                            for k, v in pairs(
+                                            systems_settings[module_key].enabled) do
+                                temp[k] = v
+                            end
+                        end
+                        imgui.SameLine()
+                        if imgui.Button(u8("Закрыть"),
+                                        imgui.ImVec2(btn_width, 0)) then
+                            for k, v in pairs(temp) do
+                                settings.systems_settings[module_key].enabled[k] =
+                                    v
+                            end
+                            save_settings()
+                            imgui.CloseCurrentPopup()
+                        end
+                        imgui.EndPopup()
+                    end
+                    imgui.EndChild()
+                end
+                imgui.EndTabItem()
+            end
+
+            -- 3. Умный срок
+            if imgui.BeginTabItem(fa.STAR .. u8 ' Умный срок') then
                 renderSmartGUI(
                     'Система умного продления срока',
                     fa.TICKET,
@@ -11749,54 +12301,28 @@ function render_fractions_functions()
                     modules.smart_rptp.path, 'smart_rptp', 'умный срок')
                 imgui.EndTabItem()
             end
-            if isMode('army') then
-                if imgui.BeginTabItem(fa.BOOK ..
-                                          u8(' Система устава')) then
-                    renderUstavEditor('Система устава', fa.BOOK,
-                                      'https://alexwright55.github.io/Defency-Helper/SmartCharterArmy/' ..
-                                          getServerNumber() ..
-                                          '/SmartCharter.json',
-                                      'системы устава',
-                                      modules.smart_charter.data,
-                                      function()
-                        save_module("smart_rptp")
-                    end, 'Использование: /charter',
-                                      modules.smart_charter.path,
-                                      'smart_charter',
-                                      'система устава')
-                    imgui.EndTabItem()
-                end
-            elseif isMode('prison') then
-                if imgui.BeginTabItem(fa.BOOK ..
-                                          u8(' Система устава')) then
-                    renderUstavEditor('Система устава', fa.BOOK,
-                                      'https://alexwright55.github.io/Defency-Helper/SmartCharterDefency/' ..
-                                          getServerNumber() ..
-                                          '/SmartCharter.json',
-                                      'системы устава',
-                                      modules.smart_charter.data,
-                                      function()
-                        save_module("smart_rptp")
-                    end, 'Использование: /charter',
-                                      modules.smart_charter.path,
-                                      'smart_charter',
-                                      'система устава')
-                    imgui.EndTabItem()
-                end
-                imgui.EndTabBar()
+
+            -- 4. Устав
+            if imgui.BeginTabItem(fa.BOOK .. u8(' Устав')) then
+                renderUstavEditor()
+                imgui.EndTabItem()
             end
+
+            imgui.EndTabBar()
         end
-    else
-        if imgui.BeginChild('##assist',
-                            imgui.ImVec2(589 * settings.general.custom_dpi,
-                                         367 * settings.general.custom_dpi),
-                            true) then
-            firs_render_assist_gui()
-            imgui.Separator()
-            imgui.EndChild()
-        end
+        return
+    end
+
+    -- ДЛЯ ОСТАЛЬНЫХ ФРАКЦИЙ (без подвкладок)
+    if imgui.BeginChild('##assist',
+                        imgui.ImVec2(589 * settings.general.custom_dpi,
+                                     367 * settings.general.custom_dpi), true) then
+        firs_render_assist_gui()
+        imgui.Separator()
+        imgui.EndChild()
     end
 end
+
 if (not isMode('none')) then
     imgui.OnFrame(function() return MODULE.Members.Window[0] end,
                   function(player)
@@ -15036,62 +15562,79 @@ imgui.OnFrame(function() return MODULE.Snake.Window[0] end, function(player)
     imgui.End()
 end)
 
-imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player)
-    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi, 330 * settings.general.custom_dpi), imgui.Cond.FirstUseEver)
-    
-    imgui.Begin(getHelperIcon() .. u8(" УПРАВЛЕНИЕ ПОДРАЗДЕЛЕНИЕМ ") .. getHelperIcon(), 
-                MODULE.UnitWindow.Window,
-                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse)
+imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end,
+              function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(850 * settings.general.custom_dpi,
+                                         330 * settings.general.custom_dpi),
+                            imgui.Cond.FirstUseEver)
+
+    imgui.Begin(
+        getHelperIcon() .. u8(" УПРАВЛЕНИЕ ОТДЕЛАМИ ") ..
+            getHelperIcon(), MODULE.UnitWindow.Window,
+        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+            imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse)
     change_dpi()
-    
+
     local divisions = MODULE.UnitWindow.parsed_data
-    
+
     -- === Верхняя панель ===
     if MODULE.UnitWindow.auto_update[0] then
-        local time_left = MODULE.UnitWindow.update_interval - (os.clock() - MODULE.UnitWindow.update_timer)
+        local time_left = MODULE.UnitWindow.update_interval -
+                              (os.clock() - MODULE.UnitWindow.update_timer)
         if time_left < 0 then time_left = 0 end
         local progress = 1.0 - (time_left / MODULE.UnitWindow.update_interval)
-        
-        imgui.TextColored(imgui.ImVec4(0.3, 1.0, 0.3, 1.0), fa.ROTATE .. u8(" АВТО"))
+
+        imgui.TextColored(imgui.ImVec4(0.3, 1.0, 0.3, 1.0),
+                          fa.ROTATE .. u8(" АВТО"))
         imgui.SameLine()
         imgui.Text(string.format("%.1fs", time_left))
         imgui.SameLine()
-        imgui.ProgressBar(progress, imgui.ImVec2(40 * settings.general.custom_dpi, 10 * settings.general.custom_dpi), "")
+        imgui.ProgressBar(progress, imgui.ImVec2(
+                              40 * settings.general.custom_dpi,
+                              10 * settings.general.custom_dpi), "")
     else
-        imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1.0), fa.ROTATE .. u8(" Авто: выкл"))
+        imgui.TextColored(imgui.ImVec4(0.5, 0.5, 0.5, 1.0),
+                          fa.ROTATE .. u8(" Авто: выкл"))
     end
-    
-    local count_text = u8("Подразделений: " .. #divisions)
-    imgui.SameLine()
-    imgui.SetCursorPosX(imgui.GetWindowWidth() - imgui.CalcTextSize(count_text).x - 20)
+
+    local count_text = u8("Отделов: " .. #divisions)
+    local text_width = imgui.CalcTextSize(count_text).x
+    local window_width = imgui.GetWindowWidth()
+    local right_x = window_width - text_width - 20
+    local auto_text_y = imgui.GetCursorPosY() -
+                            imgui.GetTextLineHeightWithSpacing()
+    imgui.SetCursorPos(imgui.ImVec2(right_x, auto_text_y))
     imgui.TextColored(imgui.ImVec4(0.7, 0.7, 0.8, 1.0), count_text)
-    
+
     imgui.Separator()
-    
+    imgui.Separator()
+
     -- === Заголовки таблицы ===
-    imgui.Columns(3, "##header_cols", true)
-    imgui.SetColumnWidth(0, 280 * settings.general.custom_dpi)
-    imgui.SetColumnWidth(1, 240 * settings.general.custom_dpi)
-    imgui.SetColumnWidth(2, 300 * settings.general.custom_dpi)
-    
+    imgui.Columns(4, "##header_cols", true)
+    imgui.SetColumnWidth(0, 230 * settings.general.custom_dpi)
+    imgui.SetColumnWidth(1, 200 * settings.general.custom_dpi)
+    imgui.SetColumnWidth(2, 250 * settings.general.custom_dpi)
+    imgui.SetColumnWidth(3, 150 * settings.general.custom_dpi)
+
     local hc = imgui.ImVec4(1.0, 0.85, 0.3, 1.0)
-    imgui.TextColored(hc, u8("НАЗВАНИЕ ПОДРАЗДЕЛЕНИЯ"))
+    imgui.TextColored(hc, u8("НАЗВАНИЕ ОТДЕЛА"))
     imgui.NextColumn()
     imgui.TextColored(hc, u8("ЛИДЕР"))
     imgui.NextColumn()
     imgui.TextColored(hc, u8("ЗАДАНИЕ"))
+    imgui.NextColumn()
+    imgui.TextColored(hc, u8("ДЕЙСТВИЕ"))
     imgui.Columns(1)
-    
+
     local dl = imgui.GetWindowDrawList()
     local cp = imgui.GetCursorScreenPos()
-    dl:AddLine(
-        imgui.ImVec2(cp.x + 5, cp.y + 2), 
-        imgui.ImVec2(cp.x + imgui.GetWindowWidth() - 15, cp.y + 2), 
-        imgui.GetColorU32Vec4(imgui.ImVec4(0.3, 0.5, 0.8, 0.6)), 2.0
-    )
+    dl:AddLine(imgui.ImVec2(cp.x + 5, cp.y + 2),
+               imgui.ImVec2(cp.x + imgui.GetWindowWidth() - 15, cp.y + 2),
+               imgui.GetColorU32Vec4(imgui.ImVec4(0.3, 0.5, 0.8, 0.6)), 2.0)
     imgui.Dummy(imgui.ImVec2(0, 4))
-    
+
     -- === Строки данных ===
     if #divisions > 0 then
         for i, div in ipairs(divisions) do
@@ -15100,55 +15643,63 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
             local task = div.task or " "
             local status = div.leader_status or ""
             local your_div = div.your_division or ""
-            
-            -- Проверяем на "не установлено"
-            local is_unset = (name:find("Не установлено") ~= nil) or
-                            (leader:find("Не установлен") ~= nil) or
-                            (task:find("Не установлено") ~= nil)
-            
+
+            local is_unset =
+                (name:find("Не установлено") ~= nil) or
+                    (leader:find("Не установлен") ~= nil) or
+                    (task:find("Не установлено") ~= nil)
+
             local off = status:find("OFF")
             local on = status:find("ON") or status:find("ID:")
-            local yours = (your_div ~= "" and your_div:find("Вы тут") ~= nil)
-            
+            local yours = (your_div ~= "" and your_div:find("Вы тут") ~=
+                              nil)
+
             -- Подсветка для вашего подразделения
             if yours and not is_unset then
                 local rp = imgui.GetCursorScreenPos()
-                dl:AddRectFilled(
-                    imgui.ImVec2(rp.x + 3, rp.y - 1), 
-                    imgui.ImVec2(rp.x + imgui.GetWindowWidth() - 6, rp.y + 20 * settings.general.custom_dpi),
-                    imgui.GetColorU32Vec4(imgui.ImVec4(0.2, 0.4, 0.8, 0.08)), 4
-                )
-                dl:AddRectFilled(
-                    imgui.ImVec2(rp.x + 3, rp.y - 1), 
-                    imgui.ImVec2(rp.x + 6, rp.y + 20 * settings.general.custom_dpi),
-                    imgui.GetColorU32Vec4(imgui.ImVec4(0.3, 0.5, 0.9, 0.5)), 4
-                )
+                dl:AddRectFilled(imgui.ImVec2(rp.x + 3, rp.y - 1),
+                                 imgui.ImVec2(rp.x + imgui.GetWindowWidth() - 6,
+                                              rp.y + 20 *
+                                                  settings.general.custom_dpi),
+                                 imgui.GetColorU32Vec4(
+                                     imgui.ImVec4(0.2, 0.4, 0.8, 0.08)), 4)
+                dl:AddRectFilled(imgui.ImVec2(rp.x + 3, rp.y - 1),
+                                 imgui.ImVec2(rp.x + 6, rp.y + 20 *
+                                                  settings.general.custom_dpi),
+                                 imgui.GetColorU32Vec4(
+                                     imgui.ImVec4(0.3, 0.5, 0.9, 0.5)), 4)
             end
-            
-            -- Колонки для строки
-            imgui.Columns(3, "##row" .. i, true)
-            imgui.SetColumnWidth(0, 280 * settings.general.custom_dpi)
-            imgui.SetColumnWidth(1, 240 * settings.general.custom_dpi)
-            imgui.SetColumnWidth(2, 300 * settings.general.custom_dpi)
-            
+
+            imgui.Columns(4, "##row" .. i, true)
+            imgui.SetColumnWidth(0, 230 * settings.general.custom_dpi)
+            imgui.SetColumnWidth(1, 200 * settings.general.custom_dpi)
+            imgui.SetColumnWidth(2, 250 * settings.general.custom_dpi)
+            imgui.SetColumnWidth(3, 150 * settings.general.custom_dpi)
+
             -- Колонка 1: Название
             if is_unset then
                 imgui.TextDisabled(u8(name))
             else
                 local nc = imgui.GetStyle().Colors[imgui.Col.Text]
-                if yours then nc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0) end
+                if yours then
+                    nc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0)
+                end
                 imgui.TextColored(nc, (yours and "> " or "") .. u8(name))
             end
             imgui.NextColumn()
-            
+
             -- Колонка 2: Лидер
             if is_unset then
                 imgui.TextDisabled(u8(leader))
             else
                 local sc = imgui.GetStyle().Colors[imgui.Col.Text]
-                if off then sc = imgui.ImVec4(0.95, 0.35, 0.35, 1.0) end
-                if on then sc = imgui.ImVec4(0.35, 0.9, 0.35, 1.0) end
-                
+                if off then
+                    sc = imgui.ImVec4(0.95, 0.35, 0.35, 1.0)
+                end
+                if on then
+                    sc = imgui.ImVec4(0.35, 0.9, 0.35, 1.0)
+                end
+
                 local lt = u8(leader)
                 if status ~= "" then
                     lt = lt .. " [" .. status .. "]"
@@ -15156,30 +15707,52 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
                 imgui.TextColored(sc, lt)
             end
             imgui.NextColumn()
-            
+
             -- Колонка 3: Задание
             if is_unset then
                 imgui.TextDisabled(u8(task))
             else
                 local tt = u8(task)
-                if yours then
-                    tt = tt .. u8"  [Вы тут]"
-                end
+                if yours then tt = tt .. u8 "  [Вы тут]" end
                 local tc = imgui.GetStyle().Colors[imgui.Col.Text]
-                if yours then tc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0) end
+                if yours then
+                    tc = imgui.ImVec4(0.4, 0.7, 1.0, 1.0)
+                end
                 imgui.TextColored(tc, tt)
             end
             imgui.NextColumn()
-            
+
+            -- Колонка 4: Кнопка управления (всегда показываем)
+            if imgui.SmallButton(fa.GEAR ..
+                                     u8(" Управлять##manage_div_" .. i)) then
+                MODULE.UnitManagementDialog.selected_division = div
+                MODULE.UnitManagementDialog.selected_name = name
+                MODULE.UnitManagementDialog.selected_leader = leader
+                MODULE.UnitManagementDialog.selected_task = task
+
+                -- Если название "Не установлено" - очищаем поле ввода
+                if is_unset then
+                    imgui.StrCopy(MODULE.UnitManagementDialog.edit_name, u8(""))
+                    imgui.StrCopy(MODULE.UnitManagementDialog.edit_task, u8(""))
+                else
+                    imgui.StrCopy(MODULE.UnitManagementDialog.edit_name,
+                                  u8(name))
+                    imgui.StrCopy(MODULE.UnitManagementDialog.edit_task,
+                                  u8(task))
+                end
+
+                MODULE.UnitManagementDialog.Window[0] = true
+            end
+            imgui.NextColumn()
+
             imgui.Columns(1)
-            
+
             if i < #divisions then
                 local sp = imgui.GetCursorScreenPos()
-                dl:AddLine(
-                    imgui.ImVec2(sp.x + 10, sp.y + 1), 
-                    imgui.ImVec2(sp.x + imgui.GetWindowWidth() - 20, sp.y + 1), 
-                    imgui.GetColorU32Vec4(imgui.ImVec4(0.15, 0.2, 0.3, 0.3)), 1.0
-                )
+                dl:AddLine(imgui.ImVec2(sp.x + 10, sp.y + 1), imgui.ImVec2(
+                               sp.x + imgui.GetWindowWidth() - 20, sp.y + 1),
+                           imgui.GetColorU32Vec4(
+                               imgui.ImVec4(0.15, 0.2, 0.3, 0.3)), 1.0)
                 imgui.Dummy(imgui.ImVec2(0, 2))
             end
         end
@@ -15187,60 +15760,371 @@ imgui.OnFrame(function() return MODULE.UnitWindow.Window[0] end, function(player
         imgui.SetCursorPosY(imgui.GetCursorPosY() + 50)
         imgui.CenterText(u8("Нет данных"))
     end
-    
+
     -- === Кнопки ===
-    imgui.SetCursorPosY(imgui.GetWindowHeight() - 38 * settings.general.custom_dpi)
+    imgui.SetCursorPosY(imgui.GetWindowHeight() - 38 *
+                            settings.general.custom_dpi)
     imgui.Separator()
-    
+
     local bw = 130 * settings.general.custom_dpi
     local cw = 170 * settings.general.custom_dpi
     local sp = (imgui.GetWindowWidth() - bw * 2 - cw) / 4
-    
+
     imgui.SetCursorPosX(sp)
     imgui.SetCursorPosY(imgui.GetCursorPosY() + 3)
-    
+
     if imgui.Button(u8("ОБНОВИТЬ"), imgui.ImVec2(bw, 24)) then
         sampSendChat("/unit")
         MODULE.UnitWindow.update_timer = os.clock()
     end
-    
+
     imgui.SameLine(0, sp)
     imgui.SetCursorPosY(imgui.GetCursorPosY() + 2)
-    if imgui.Checkbox(u8("АВТО (" .. MODULE.UnitWindow.update_interval .. "с)"), MODULE.UnitWindow.auto_update) then
+    if imgui.Checkbox(u8("АВТО (" .. MODULE.UnitWindow.update_interval ..
+                             "с)"), MODULE.UnitWindow.auto_update) then
         if MODULE.UnitWindow.auto_update[0] then
             MODULE.UnitWindow.update_timer = os.clock()
             sampSendChat("/unit")
         end
     end
-    
+
     imgui.SameLine(0, sp)
     imgui.SetCursorPosY(imgui.GetCursorPosY() - 2)
-    
+
     if imgui.Button(u8("ЗАКРЫТЬ"), imgui.ImVec2(bw, 24)) then
         MODULE.UnitWindow.Window[0] = false
         MODULE.UnitWindow.auto_update[0] = false
     end
-    
+
+    imgui.End()
+end)
+
+-- Окно управления конкретным отделом (диалог)
+imgui.OnFrame(function() return MODULE.UnitManagementDialog.Window[0] end,
+              function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.Appearing, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(500 * settings.general.custom_dpi,
+                                         380 * settings.general.custom_dpi),
+                            imgui.Cond.FirstUseEver)
+    imgui.Begin(
+        fa.CIRCLE_INFO .. u8(" ИНФОРМАЦИЯ ") .. fa.CIRCLE_INFO,
+        MODULE.UnitManagementDialog.Window,
+        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+            imgui.WindowFlags.NoScrollbar)
+    change_dpi()
+
+    -- Открываем popup если установлен флаг
+    if MODULE.UnitManagementDialog.show_rename_popup then
+        MODULE.UnitManagementDialog.show_rename_popup = false
+        imgui.OpenPopup(u8("Переименовать##unit_rename_popup"))
+    end
+    if MODULE.UnitManagementDialog.show_task_popup then
+        MODULE.UnitManagementDialog.show_task_popup = false
+        imgui.OpenPopup(u8("Изменить задание##unit_task_popup"))
+    end
+
+    local div = MODULE.UnitManagementDialog.selected_division
+    if div then
+        imgui.SetCursorPosX(10 * settings.general.custom_dpi)
+        imgui.TextColored(imgui.ImVec4(0.4, 0.7, 1.0, 1.0),
+                          u8("Отдел: ") ..
+                              u8(MODULE.UnitManagementDialog.selected_name))
+        imgui.Separator()
+
+        if imgui.BeginChild("##unit_manage_content", imgui.ImVec2(-1, -42 *
+                                                                      settings.general
+                                                                          .custom_dpi),
+                            false, imgui.WindowFlags.NoScrollbar) then
+
+            local function sendUnitCommand(action_name, action_data)
+                MODULE.UnitManagementDialog.pending_action = action_name
+                MODULE.UnitManagementDialog.action_stage = 0
+                MODULE.UnitManagementDialog.temp_data = action_data or {}
+                MODULE.UnitManagementDialog.Window[0] = false
+                sampSendChat("/unit")
+            end
+
+            -- Пункт 1
+            if imgui.Button(u8(
+                                "1. ПЕРЕНАЗНАЧИТЬ ЛИДЕРА ПОДРАЗДЕЛЕНИЯ"),
+                            imgui.ImVec2(-1, 30 * settings.general.custom_dpi)) then
+                sendUnitCommand("change_leader", {})
+            end
+
+            imgui.Dummy(imgui.ImVec2(0, 3))
+
+            -- Пункт 2
+            if imgui.Button(u8(
+                                "2. ПЕРЕИМЕНОВАТЬ НАЗВАНИЕ ПОДРАЗДЕЛЕНИЯ"),
+                            imgui.ImVec2(-1, 30 * settings.general.custom_dpi)) then
+                sendUnitCommand("rename_division", {})
+            end
+
+            imgui.Dummy(imgui.ImVec2(0, 3))
+
+            -- Пункт 3
+            if imgui.Button(u8("3. ИЗМЕНИТЬ ЗАДАНИЕ"),
+                            imgui.ImVec2(-1, 30 * settings.general.custom_dpi)) then
+                sendUnitCommand("change_task", {})
+            end
+
+            imgui.Dummy(imgui.ImVec2(0, 3))
+
+            -- Пункт 4
+            if imgui.Button(u8(
+                                "4. НАЗНАЧИТЬ ПОДРАЗДЕЛЕНИЕ ИГРОКУ"),
+                            imgui.ImVec2(-1, 30 * settings.general.custom_dpi)) then
+                sendUnitCommand("assign_player", {})
+            end
+
+            imgui.Dummy(imgui.ImVec2(0, 3))
+
+            -- Пункт 5
+            if imgui.Button(u8(
+                                "5. УБРАТЬ ИГРОКА ИЗ ЭТОГО ПОДРАЗДЕЛЕНИЯ"),
+                            imgui.ImVec2(-1, 30 * settings.general.custom_dpi)) then
+                sendUnitCommand("remove_player", {})
+            end
+
+            imgui.Dummy(imgui.ImVec2(0, 3))
+
+            -- Пункт 6
+            if imgui.Button(u8(
+                                "6. УЧАСТНИКИ ПОДРАЗДЕЛЕНИЯ"),
+                            imgui.ImVec2(-1, 30 * settings.general.custom_dpi)) then
+                sendUnitCommand("show_members", {})
+            end
+
+            imgui.EndChild()
+        end
+
+        -- ========================================
+        -- POPUP: Переименовать
+        -- ========================================
+        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                               imgui.Cond.Appearing, imgui.ImVec2(0.5, 0.5))
+        if imgui.BeginPopupModal(u8(
+                                     "Переименовать##unit_rename_popup"),
+                                 nil,
+                                 imgui.WindowFlags.NoCollapse +
+                                     imgui.WindowFlags.NoResize +
+                                     imgui.WindowFlags.AlwaysAutoResize) then
+            change_dpi()
+            imgui.Text(u8("Введите новое название:"))
+            imgui.PushItemWidth(-1)
+            imgui.InputTextWithHint("##edit_div_name",
+                                    u8("Новое название..."),
+                                    MODULE.UnitManagementDialog.edit_name, 256)
+            imgui.Separator()
+            if imgui.Button(u8("ПЕРЕИМЕНОВАТЬ"),
+                            imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                local new_name = u8:decode(ffi.string(
+                                               MODULE.UnitManagementDialog
+                                                   .edit_name))
+                if new_name ~= "" then
+                    -- Закрываем popup
+                    imgui.CloseCurrentPopup()
+                    -- Закрываем окно управления
+                    MODULE.UnitManagementDialog.Window[0] = false
+                    -- Отправляем команду на переименование через диалог
+                    MODULE.UnitManagementDialog.pending_action =
+                        "rename_division"
+                    MODULE.UnitManagementDialog.action_stage = 0
+                    MODULE.UnitManagementDialog.temp_data = {
+                        new_name = new_name
+                    }
+                    sampSendChat("/unit")
+                else
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Название не может быть пустым!",
+                                       message_color)
+                end
+            end
+            imgui.SameLine()
+            if imgui.Button(u8("ОТМЕНА"),
+                            imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                imgui.CloseCurrentPopup()
+            end
+            imgui.EndPopup()
+        end
+
+        -- ========================================
+        -- POPUP: Изменить задание
+        -- ========================================
+        imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                               imgui.Cond.Appearing, imgui.ImVec2(0.5, 0.5))
+        if imgui.BeginPopupModal(u8(
+                                     "Изменить задание##unit_task_popup"),
+                                 nil,
+                                 imgui.WindowFlags.NoCollapse +
+                                     imgui.WindowFlags.NoResize +
+                                     imgui.WindowFlags.AlwaysAutoResize) then
+            change_dpi()
+            imgui.Text(u8("Введите новое задание:"))
+            imgui.PushItemWidth(-1)
+            imgui.InputTextMultiline("##edit_div_task",
+                                     MODULE.UnitManagementDialog.edit_task, 256,
+                                     imgui.ImVec2(-1, 80 *
+                                                      settings.general
+                                                          .custom_dpi))
+            imgui.Separator()
+            if imgui.Button(u8("ИЗМЕНИТЬ"),
+                            imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                local new_task = u8:decode(ffi.string(
+                                               MODULE.UnitManagementDialog
+                                                   .edit_task))
+                if new_task ~= "" then
+                    -- Закрываем popup
+                    imgui.CloseCurrentPopup()
+                    -- Закрываем окно управления
+                    MODULE.UnitManagementDialog.Window[0] = false
+                    -- Отправляем команду на изменение задания через диалог
+                    MODULE.UnitManagementDialog.pending_action = "change_task"
+                    MODULE.UnitManagementDialog.action_stage = 0
+                    MODULE.UnitManagementDialog.temp_data = {
+                        new_task = new_task
+                    }
+                    sampSendChat("/unit")
+                else
+                    sampAddChatMessage(script_tag ..
+                                           " {ffffff}Задание не может быть пустым!",
+                                       message_color)
+                end
+            end
+            imgui.SameLine()
+            if imgui.Button(u8("ОТМЕНА"),
+                            imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                imgui.CloseCurrentPopup()
+            end
+            imgui.EndPopup()
+        end
+
+        imgui.Separator()
+        if imgui.Button(u8("ОТМЕНА"), imgui.ImVec2(
+                            imgui.GetMiddleButtonX(1),
+                            25 * settings.general.custom_dpi)) then
+            MODULE.UnitManagementDialog.Window[0] = false
+        end
+    else
+        imgui.Text(u8("Нет данных об отделе"))
+        if imgui.Button(u8("ЗАКРЫТЬ"), imgui.ImVec2(
+                            imgui.GetMiddleButtonX(1),
+                            25 * settings.general.custom_dpi)) then
+            MODULE.UnitManagementDialog.Window[0] = false
+        end
+    end
+
+    imgui.End()
+end)
+
+imgui.OnFrame(function() return MODULE.JailInfo.window[0] end, function(player)
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowSize(imgui.ImVec2(450 * settings.general.custom_dpi,
+                                         300 * settings.general.custom_dpi),
+                            imgui.Cond.FirstUseEver)
+
+    imgui.Begin(
+        fa.INFO .. u8(" Информация о наказаниях ") ..
+            u8(MODULE.JailInfo.target_name) .. "[" .. MODULE.JailInfo.target_id ..
+            "]", MODULE.JailInfo.window,
+        imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
+    change_dpi()
+
+    if #MODULE.JailInfo.data > 0 then
+        for _, punishment in ipairs(MODULE.JailInfo.data) do
+            if punishment.completed then
+                -- Выполненные задания - зелёным цветом
+                imgui.PushStyleColor(imgui.Col.Text,
+                                     imgui.ImVec4(0.3, 0.9, 0.3, 1.0))
+                imgui.BulletText(u8(punishment.task .. " ?"))
+                imgui.PopStyleColor()
+            else
+                -- Невыполненные - красным
+                imgui.PushStyleColor(imgui.Col.Text,
+                                     imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
+                imgui.BulletText(u8(punishment.task))
+                imgui.PopStyleColor()
+            end
+            imgui.Separator()
+        end
+    else
+        imgui.Text(u8("Нет данных о наказаниях"))
+    end
+
+    if imgui.Button(u8("ЗАКРЫТЬ"),
+                    imgui.ImVec2(imgui.GetMiddleButtonX(1), 0)) then
+        MODULE.JailInfo.window[0] = false
+    end
+
     imgui.End()
 end)
 ------------------------------- OTHER FUNCTIONS --------------------------
+function parseJailInfo(text)
+    local punishments = {}
+
+    -- Убираем цветовые коды
+    local clean_text = text:gsub("{[%x%a]+}", "")
+
+    -- Парсим каждую строку с наказанием
+    for line in clean_text:gmatch("[^\r\n]+") do
+        -- Пропускаем заголовок и пустые строки
+        if not line:find("ИНФОРМАЦИЯ") and
+            not line:find("ЗАКРЫТЬ") and line:find("%d") then
+            local task = line:match("^%s*%-%s*(.+)")
+            if task then
+                -- Проверяем, выполнено ли задание (0 из X)
+                local current, max_num = task:match("(%d+) .+ (%d+)")
+                local completed = false
+                if current and max_num then
+                    completed = (tonumber(current) >= tonumber(max_num))
+                end
+                table.insert(punishments, {
+                    task = task,
+                    completed = completed,
+                    current = current or "0",
+                    max = max_num or "0"
+                })
+            end
+        end
+    end
+
+    return punishments
+end
+
+function get_closest_player_id()
+    local players = get_players()
+    if #players > 0 then return players[1] end
+    return nil
+end
+
+function clearPendingAction()
+    MODULE.UnitManagementDialog.pending_action = nil
+    MODULE.UnitManagementDialog.action_stage = 0
+    MODULE.UnitManagementDialog.temp_data = {}
+end
+
 function parseDivisionDialog(text)
     local divisions = {}
     if not text then return divisions end
 
     -- Убираем цветовые коды
     local clean_text = text:gsub("{[%x%a]+}", "")
-    
+
     -- Разбиваем на строки
     local lines = {}
     for line in clean_text:gmatch("[^\r\n]+") do
         -- Убираем пробелы по краям
         line = line:match("^%s*(.-)%s*$") or ""
-        if line ~= "" and 
-           not line:find("Название подразделения") and
-           not line:find("УПРАВЛЕНИЕ ПОДРАЗДЕЛЕНИЕМ") and
-           not line:find("%[ПРИНЯТЬ%]") and
-           not line:find("%[ОТМЕНА%]") then
+        if line ~= "" and
+            not line:find("Название подразделения") and
+            not line:find("УПРАВЛЕНИЕ ПОДРАЗДЕЛЕНИЕМ") and
+            not line:find("%[ПРИНЯТЬ%]") and
+            not line:find("%[ОТМЕНА%]") and
+            not line:find("Подразделение") and -- ДОБАВЛЕНО: фильтруем заголовок
+            not line:find("Лидер") and -- ДОБАВЛЕНО: фильтруем заголовок  
+        not line:find("Задание") then -- ДОБАВЛЕНО: фильтруем заголовок
             table.insert(lines, line)
         end
     end
@@ -15253,45 +16137,51 @@ function parseDivisionDialog(text)
             part = part:match("^%s*(.-)%s*$") or ""
             table.insert(parts, part)
         end
-        
+
         if #parts >= 3 then
             local name = parts[1] or ""
             local leader_full = parts[2] or ""
             local task_full = parts[3] or ""
             local your_div = ""
-            
+
             -- Проверяем 4-ю часть (Ваше подразделение)
             if #parts >= 4 and parts[4] ~= "" then
                 your_div = parts[4]
             end
-            
+
             -- Проверяем, есть ли [Вы тут] в задании
             if task_full:find("%[Вы тут%]") then
                 your_div = "Вы тут"
                 task_full = task_full:gsub("%s*%[Вы тут%]%s*", "")
             end
-            
+
             -- Извлекаем статус из лидера
             local leader = leader_full
             local leader_status = ""
-            
+
             local status_start, status_end = leader_full:find("%[([^%]]+)%]")
             if status_start then
-                leader_status = leader_full:sub(status_start + 1, status_end - 1)
-                leader = leader_full:sub(1, status_start - 1):match("^%s*(.-)%s*$") or leader_full
+                leader_status =
+                    leader_full:sub(status_start + 1, status_end - 1)
+                leader = leader_full:sub(1, status_start - 1):match(
+                             "^%s*(.-)%s*$") or leader_full
             end
-            
-            if name == "" then name = " " end
-            if leader == "" then leader = " " end
-            if task_full == "" then task_full = " " end
-            
-            table.insert(divisions, {
-                name = name,
-                leader = leader,
-                leader_status = leader_status,
-                task = task_full,
-                your_division = your_div
-            })
+
+            -- Пропускаем пустые имена и заголовки
+            if name ~= "" and name ~= " " and not name:find("Название") and
+                not name:find("Подразделение") then
+
+                if leader == "" then leader = " " end
+                if task_full == "" then task_full = " " end
+
+                table.insert(divisions, {
+                    name = name,
+                    leader = leader,
+                    leader_status = leader_status,
+                    task = task_full,
+                    your_division = your_div
+                })
+            end
         end
     end
 
@@ -15309,7 +16199,8 @@ function isAnyHelperWindowOpen()
                MODULE.Update.Window[0] or MODULE.CommandPause.Window[0] or
                MODULE.CommandStop.Window[0] or MODULE.FastMenuPlayers.Window[0] or
                MODULE.ClearList.Window[0] or MODULE.Help.Window[0] or
-               MODULE.Snake.Window[0] or MODULE.UnitWindow.Window[0]
+               MODULE.Snake.Window[0] or MODULE.UnitWindow.Window[0] or
+               MODULE.UnitManagementDialog.Window[0]
 end
 
 -- Функция /time+F8
