@@ -160,7 +160,8 @@ local default_settings = {
         patrool_menu = {x = sizeX / 2, y = sizeY / 2},
         post_menu = {x = sizeX / 2, y = sizeY / 2},
         mobile_fastmenu_button = {x = sizeX / 8.5, y = sizeY / 2.3},
-        taser = {x = sizeX / 4.2, y = sizeY / 2.1}
+        taser = {x = sizeX / 4.2, y = sizeY / 2.1},
+        help = {x = sizeX / 2, y = sizeY / 2}
     },
     time_hud = false,
     display_map_distance = {user = false, server = false},
@@ -3321,17 +3322,39 @@ end
 if not pie_no_errors then
     print('Библиотека PieMenu отсуствует!')
 end
+
 ------------------------------------------- Mimgui Hotkey ----------------------------------------
 local hotkeys = {}
+
+-- Инициализируем переменные ЗАРАНЕЕ
+MainMenuHotKey = nil
+CommandStopHotKey = nil
+FastMenuHotKey = nil
+LeaderFastMenuHotKey = nil
+ActionHotKey = nil
+
+-- Функция создания заглушки для хоткеев
+local function createDummyHotKey()
+    local dummy = {}
+    function dummy:ShowHotKey() return false end
+    function dummy:GetHotKey() return {} end
+    function dummy:RemoveHotKey() end
+    return dummy
+end
+
+if not getNameKeysFrom then
+    getNameKeysFrom = function(keys) return "" end
+end
+
 if hotkey_no_errors and not isMode('') then
     hotkey.Text.NoKey = u8 '< click and select keys >'
     hotkey.Text.WaitForKey = u8 '< wait keys >'
+    
     function getNameKeysFrom(keys)
         if type(keys) == "table" then
             local keysStr = {}
             for _, keyId in ipairs(keys) do
-                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or
-                                    ''
+                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
                 table.insert(keysStr, keyName)
             end
             return table.concat(keysStr, ' + ') or ''
@@ -3342,8 +3365,7 @@ if hotkey_no_errors and not isMode('') then
             end
             local keysStr = {}
             for _, keyId in ipairs(keysTable) do
-                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or
-                                    ''
+                local keyName = vkeys_no_errors and vkeys.id_to_name(keyId) or ''
                 table.insert(keysStr, keyName)
             end
             return table.concat(keysStr, ' + ') or ''
@@ -3351,100 +3373,105 @@ if hotkey_no_errors and not isMode('') then
             return ''
         end
     end
-    function loadHotkeys()
-        MainMenuHotKey = hotkey.RegisterHotKey('Open MainMenu', false,
-                                               safeDecodeJson(
-                                                   settings.general
-                                                       .bind_mainmenu),
-                                               function()
-            if not MODULE.Main.Window[0] then
-                MODULE.Main.Window[0] = true
+    
+    -- ОСНОВНЫЕ ХОТКЕИ (создаются сразу)
+    MainMenuHotKey = hotkey.RegisterHotKey('Open MainMenu', false,
+                                           safeDecodeJson(settings.general.bind_mainmenu),
+                                           function()
+        if not MODULE.Main.Window[0] then
+            MODULE.Main.Window[0] = true
+        end
+    end)
+    
+    CommandStopHotKey = hotkey.RegisterHotKey('Stop Command', false,
+                                              safeDecodeJson(settings.general.bind_command_stop),
+                                              function()
+        sampProcessChatInput('/stop')
+    end)
+    
+    FastMenuHotKey = hotkey.RegisterHotKey('Open FastMenu', false,
+                                           safeDecodeJson(settings.general.bind_fastmenu),
+                                           function()
+        local valid, ped = getCharPlayerIsTargeting(PLAYER_HANDLE)
+        if valid and doesCharExist(ped) then
+            local result, id = sampGetPlayerIdByCharHandle(ped)
+            if result and id ~= -1 and not MODULE.LeaderFastMenu.Window[0] then
+                show_fast_menu(id)
             end
-        end)
-        CommandStopHotKey = hotkey.RegisterHotKey('Stop Command', false,
-                                                  safeDecodeJson(
-                                                      settings.general
-                                                          .bind_command_stop),
-                                                  function()
-            sampProcessChatInput('/stop')
-        end)
-        FastMenuHotKey = hotkey.RegisterHotKey('Open FastMenu', false,
-                                               safeDecodeJson(
-                                                   settings.general
-                                                       .bind_fastmenu),
-                                               function()
+        end
+    end)
+    
+    LeaderFastMenuHotKey = hotkey.RegisterHotKey('Open LeaderFastMenu', false,
+                                                 safeDecodeJson(settings.general.bind_leader_fastmenu),
+                                                 function()
+        if settings.player_info.fraction_rank_number >= 9 then
             local valid, ped = getCharPlayerIsTargeting(PLAYER_HANDLE)
             if valid and doesCharExist(ped) then
                 local result, id = sampGetPlayerIdByCharHandle(ped)
-                if result and id ~= -1 and not MODULE.LeaderFastMenu.Window[0] then
-                    show_fast_menu(id)
+                if result and id ~= -1 and not MODULE.FastMenu.Window[0] then
+                    show_leader_fast_menu(id)
                 end
             end
-        end)
-        LeaderFastMenuHotKey = hotkey.RegisterHotKey('Open LeaderFastMenu',
-                                                     false, safeDecodeJson(
-                                                         settings.general
-                                                             .bind_leader_fastmenu),
-                                                     function()
-            if settings.player_info.fraction_rank_number >= 9 then
-                local valid, ped = getCharPlayerIsTargeting(PLAYER_HANDLE)
-                if valid and doesCharExist(ped) then
-                    local result, id = sampGetPlayerIdByCharHandle(ped)
-                    if result and id ~= -1 and not MODULE.FastMenu.Window[0] then
-                        show_leader_fast_menu(id)
-                    end
+        end
+    end)
+    
+    ActionHotKey = hotkey.RegisterHotKey('Action Key', false,
+                                         safeDecodeJson(settings.general.bind_action),
+                                         function()
+        if MODULE.Binder.state.isPause and MODULE.CommandPause.Window[0] then
+            MODULE.Binder.state.isPause = false
+            MODULE.CommandPause.Window[0] = false
+        elseif ((settings.player_info.fraction_rank_number >= 9) and (MODULE.GiveRank.Window[0])) then
+            give_rank()
+        end
+    end)
+    
+    -- Функция для создания хоткеев команд (будет вызвана ПОСЛЕ загрузки модулей)
+    function createHotkeyForCommand(command)
+        local hotkeyName = command.cmd .. "HotKey"
+        if hotkeys[hotkeyName] then 
+            pcall(hotkey.RemoveHotKey, hotkeyName)
+        end
+        if command.arg == "" and command.bind ~= nil and command.bind ~= '{}' and command.bind ~= '[]' then
+            local bindTable = safeDecodeJson(command.bind)
+            hotkeys[hotkeyName] = hotkey.RegisterHotKey(hotkeyName, false, bindTable, function()
+                if (not (sampIsChatInputActive() or sampIsDialogActive() or isSampfuncsConsoleActive())) then
+                    sampProcessChatInput('/' .. command.cmd)
                 end
-            end
-        end)
-        ActionHotKey = hotkey.RegisterHotKey('Action Key', false,
-                                             safeDecodeJson(
-                                                 settings.general.bind_action),
-                                             function()
-            if MODULE.Binder.state.isPause and MODULE.CommandPause.Window[0] then
-                MODULE.Binder.state.isPause = false
-                MODULE.CommandPause.Window[0] = false
-            elseif ((settings.player_info.fraction_rank_number >= 9) and
-                (MODULE.GiveRank.Window[0])) then
-                give_rank()
-            end
-        end)
+            end)
+            print('Создан хоткей для команды /' .. command.cmd .. ' на клавишу ' .. getNameKeysFrom(command.bind))
+        end
+    end
+    
+    -- Функция массовой загрузки хоткеев для команд
+    function loadCommandHotkeys()
+        if not modules or not modules.commands or not modules.commands.data then
+            return false
+        end
         for _, command in ipairs(modules.commands.data.commands.my) do
             createHotkeyForCommand(command)
         end
         for _, command in ipairs(modules.commands.data.commands_manage.my) do
             createHotkeyForCommand(command)
         end
+        return true
     end
-    function createHotkeyForCommand(command)
-        local hotkeyName = command.cmd .. "HotKey"
-        if hotkeys[hotkeyName] then hotkey.RemoveHotKey(hotkeyName) end
-        if command.arg == "" and command.bind ~= nil and command.bind ~= '{}' and
-            command.bind ~= '[]' then
-            local bindTable = safeDecodeJson(command.bind)
-            hotkeys[hotkeyName] = hotkey.RegisterHotKey(hotkeyName, false,
-                                                        bindTable, function()
-                if (not (sampIsChatInputActive() or sampIsDialogActive() or
-                    isSampfuncsConsoleActive())) then
-                    sampProcessChatInput('/' .. command.cmd)
-                end
-            end)
-            print('Создан хоткей для команды /' ..
-                      command.cmd .. ' на клавишу ' ..
-                      getNameKeysFrom(command.bind))
-            sampAddChatMessage(script_tag ..
-                                   ' {ffffff}Создан хоткей для команды ' ..
-                                   message_color_hex .. '/' .. command.cmd ..
-                                   ' {ffffff}на клавишу ' ..
-                                   message_color_hex ..
-                                   getNameKeysFrom(command.bind), message_color)
-        end
-    end
+    
     addEventHandler('onWindowMessage', function(msg, key, lparam)
         if msg == 641 or msg == 642 or lparam == -1073741809 then
             hotkey.ActiveKeys = {}
         end
         if msg == 0x0005 then hotkey.ActiveKeys = {} end
     end)
+else
+    -- Заглушки
+    MainMenuHotKey = createDummyHotKey()
+    CommandStopHotKey = createDummyHotKey()
+    FastMenuHotKey = createDummyHotKey()
+    LeaderFastMenuHotKey = createDummyHotKey()
+    ActionHotKey = createDummyHotKey()
+    createHotkeyForCommand = function() end
+    loadCommandHotkeys = function() return true end
 end
 -------------------------------------------- RP GUNS INIT ----------------------------------------
 function initialize_guns()
@@ -3602,21 +3629,14 @@ function main()
     end
 
     load_modules()
-
     initialize_guns()
-
     initialize_commands()
-
-    if ((not IS_MOBILE) and hotkey_no_errors) then loadHotkeys() end
-
     welcome_message()
-
     check_update()
+    init_debug_file()
 
     MODULE.Update.news = {}
     load_update_news()
-
-    init_debug_file()
 
     while true do
         wait(0)
@@ -3742,6 +3762,7 @@ function main()
 
     end
 end
+
 function load_modules()
     load_module('commands')
     load_module('departament')
@@ -3781,9 +3802,14 @@ function load_modules()
     end
 
     modules.clear.data = load_clear_data()
-    print(
-        'Модуль "Удаление мусора" инициализирован!')
+    print('Модуль "Удаление мусора" инициализирован!')
+    
+    -- ?? ВАЖНО: Загружаем хоткеи для команд ПОСЛЕ загрузки всех модулей
+    if not IS_MOBILE and hotkey_no_errors and type(loadCommandHotkeys) == 'function' then
+        loadCommandHotkeys()
+    end
 end
+
 function welcome_message()
     if not sampIsLocalPlayerSpawned() then
         sampAddChatMessage(script_tag ..
@@ -4774,9 +4800,6 @@ function getAllCommands()
             desc = "Удалить строку из фильтра"
         },
         {
-            cmd = "debug",
-            desc = "Включить/выключить отладку"
-        }, {
             cmd = "reloadmodule [name module]",
             desc = "Перезагрузить указанный модуль (названия: commands, departament, notes, rpgun, smart_rptp, arz_veh, piemenu, clear)"
         }, {
@@ -4785,8 +4808,7 @@ function getAllCommands()
         }, {
             cmd = "ts",
             desc = "Отправить /time и сделать скриншот"
-        }, {cmd = "reload", desc = "Перезагрузить хелпер"},
-        {cmd = "adesc", desc = "Автоописание персонажа"}
+        }, {cmd = "reload", desc = "Перезагрузить хелпер"}
     }
 
     for _, scmd in ipairs(standard) do table.insert(all, scmd) end
@@ -15398,15 +15420,22 @@ imgui.OnFrame(function() return MODULE.ClearList.Window[0] end, function(player)
 end)
 
 imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
-    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
+    -- Используем сохранённую позицию из настроек
+    local help_pos = settings.windows_pos.help
+    if not help_pos then
+        help_pos = {x = sizeX / 2, y = sizeY / 2}
+    end
+    
+    imgui.SetNextWindowPos(imgui.ImVec2(help_pos.x, help_pos.y),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
     -- Устанавливаем только ширину, высоту оставляем на авто
     imgui.SetNextWindowSize(imgui.ImVec2(700 * settings.general.custom_dpi, 0),
                             imgui.Cond.FirstUseEver)
     imgui.Begin(fa.CIRCLE_QUESTION ..
                     u8(" Список команд Defency Helper ") ..
-                    fa.CIRCLE_QUESTION, MODULE.Help.Window, imgui.WindowFlags
-                    .NoCollapse + imgui.WindowFlags.AlwaysAutoResize)
+                    fa.CIRCLE_QUESTION, MODULE.Help.Window,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.AlwaysAutoResize)
+
     change_dpi()
 
     -- Получаем список команд
@@ -15426,7 +15455,7 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
     local filter = u8:decode(ffi.string(MODULE.Help.filter)):lower()
     local matched = 0
 
-    -- Прокручиваемая область с максимальной высотой 400 (можно изменить при необходимости)
+    -- Прокручиваемая область с максимальной высотой 400
     if imgui.BeginChild("##help_list", imgui.ImVec2(0, 400), true) then
         imgui.Columns(2)
         imgui.SetColumnWidth(0, 200 * settings.general.custom_dpi)
@@ -15466,6 +15495,16 @@ imgui.OnFrame(function() return MODULE.Help.Window[0] end, function(player)
                         imgui.GetMiddleButtonX(1),
                         25 * settings.general.custom_dpi)) then
         MODULE.Help.Window[0] = false
+    end
+
+    -- Сохраняем позицию окна
+    local posX, posY = imgui.GetWindowPos().x, imgui.GetWindowPos().y
+    if posX ~= help_pos.x or posY ~= help_pos.y then
+        if not settings.windows_pos.help then
+            settings.windows_pos.help = {}
+        end
+        settings.windows_pos.help = {x = posX, y = posY}
+        save_settings()
     end
 
     imgui.End()
@@ -16442,8 +16481,7 @@ function parseDivisionDialog(text)
             not line:find("%[ПРИНЯТЬ%]") and
             not line:find("%[ОТМЕНА%]") and
             not line:find("Подразделение") and
-            not line:find("Лидер") and
-            not line:find("Задание") then
+            not line:find("Лидер") and not line:find("Задание") then
             table.insert(lines, line)
         end
     end
@@ -16470,27 +16508,31 @@ function parseDivisionDialog(text)
         --- ИЗВЛЕКАЕМ ЛИДЕРА И ЕГО СТАТУС/ID ---
         local leader = ""
         local leader_status = ""
-        
+
         -- Ищем все квадратные скобки в строке лидера
         -- Формат может быть: "Имя Фамилия [ON]", "Имя Фамилия [ID:123]", "[OFF] Имя Фамилия" и т.д.
-        
+
         -- Сначала ищем скобки в конце строки
         local bracket_start, bracket_end = leader_info:find("%[([^%]]+)%]%s*$")
         if bracket_start then
             leader_status = leader_info:sub(bracket_start + 1, bracket_end - 1)
-            leader = leader_info:sub(1, bracket_start - 1):match("^%s*(.-)%s*$") or ""
+            leader =
+                leader_info:sub(1, bracket_start - 1):match("^%s*(.-)%s*$") or
+                    ""
         else
             -- Ищем скобки в начале строки
             bracket_start, bracket_end = leader_info:find("^%s*%[([^%]]+)%]")
             if bracket_start then
-                leader_status = leader_info:sub(bracket_start + 1, bracket_end - 1)
-                leader = leader_info:sub(bracket_end + 1):match("^%s*(.-)%s*$") or ""
+                leader_status = leader_info:sub(bracket_start + 1,
+                                                bracket_end - 1)
+                leader =
+                    leader_info:sub(bracket_end + 1):match("^%s*(.-)%s*$") or ""
             else
                 -- Нет скобок - всё это имя
                 leader = leader_info
             end
         end
-        
+
         -- Если имя лидера пустое, но есть статус/ID, показываем статус как имя
         if leader == "" and leader_status ~= "" then
             leader = "[" .. leader_status .. "]"
@@ -16500,7 +16542,7 @@ function parseDivisionDialog(text)
         if name == "" or name == " " then
             name = "Не установлено"
         end
-        
+
         if task_full == "" or task_full == " " then
             task_full = "Не установлено"
         end
